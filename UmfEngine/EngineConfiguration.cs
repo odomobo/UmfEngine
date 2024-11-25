@@ -23,6 +23,7 @@ namespace UmfEngine
         public Color FixedAspectRatioMaskingBorderColor { get; set; } = Color.Black;
         public bool AllowResize { get; set; } = true;
         public Vector2 DefaultResolution { get; set; } = new Vector2(1920, 1080);
+        public bool DefaultVSync { get; set; } = false;
         public bool DefaultFullscreen { get; set; } = false;
         public bool DefaultCursorVisible {  get; set; } = true;
         public Color DefaultClearColor { get; set; } = Color.Moccasin;

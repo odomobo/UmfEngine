@@ -1,6 +1,8 @@
-﻿using SDL;
+﻿using NLog;
+using SDL;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Drawing;
 using System.Linq;
 using System.Numerics;
@@ -12,14 +14,23 @@ namespace UmfEngine
     // Note: There should only be one instance of these
     public unsafe class Engine : IDisposable
     {
+        private readonly Logger _logger;
         private SDL_Window* _window;
         private SDL_Renderer* _renderer;
         private bool _shuttingDown = false;
         private readonly EngineConfiguration _configuration;
+        private readonly Stopwatch _stopwatch;
+        private TimeSpan _lastRenderElapsedTime;
+        public float FPS { get; private set; } = 0;
+        private TimeSpan _lastFpsCalculatedElapsedTime = TimeSpan.Zero;
+        private int _framesSinceLastFpsTime = 0;
+        public float ThreadUtilization { get; private set; } = 0;
+        private TimeSpan _utilizedSinceLastFpsTime = TimeSpan.Zero;
         public Color ClearColor { get; set; }
 
         public Engine(EngineConfiguration configuration)
         {
+            _logger = LogManager.GetCurrentClassLogger();
             _configuration = configuration;
 
             if (!SDL3.SDL_Init(SDL_InitFlags.SDL_INIT_VIDEO))
@@ -36,13 +47,95 @@ namespace UmfEngine
             if (_window == null)
                 throw UmfException.From(nameof(SDL3.SDL_CreateWindow));
 
-            _renderer = SDL3.SDL_CreateRenderer(_window, (byte*)null);
+            _renderer = CreateRenderer(_window);
             if (_renderer == null)
                 throw UmfException.From(nameof(SDL3.SDL_CreateRenderer));
 
+            // try to set vsync, but don't raise a fuss if we can't
+            TrySetVSync(configuration.DefaultVSync);
+
             SetCursorVisible(configuration.DefaultCursorVisible);
             ClearColor = configuration.DefaultClearColor;
+
+            _logger.Info("UMF: Started Engine");
+            _stopwatch = Stopwatch.StartNew();
+            _lastRenderElapsedTime = TimeSpan.Zero;
         }
+
+        private SDL_Renderer* CreateRenderer(SDL_Window* window)
+        {
+            return SDL3.SDL_CreateRenderer(window, (byte*)null);
+
+            // Disabling this, as it doesn't seem to do anything on my system
+            //using var propsBuilder = new PropsBuilder();
+            //propsBuilder.SetPointerProperty(SDL3.SDL_PROP_RENDERER_CREATE_WINDOW_POINTER, window);
+            //propsBuilder.SetNumberProperty(SDL3.SDL_PROP_RENDERER_CREATE_PRESENT_VSYNC_NUMBER, 1);
+            //return SDL3.SDL_CreateRendererWithProperties(propsBuilder.Build());
+        }
+
+        public void Dispose()
+        {
+            if (_renderer != null)
+            {
+                SDL3.SDL_DestroyRenderer(_renderer);
+                _renderer = null;
+            }
+
+            if (_window != null)
+            {
+                SDL3.SDL_DestroyWindow(_window);
+                _window = null;
+            }
+
+            SDL3.SDL_Quit();
+            _logger.Info("UMF: Stopped Engine");
+        }
+
+        #region Timing
+
+        private void SleepForDurationSinceLastFrame(TimeSpan duration)
+        {
+            var totalElapsed = _stopwatch.Elapsed;
+            var deltaElapsed = totalElapsed - _lastRenderElapsedTime;
+
+            if (deltaElapsed > duration)
+            {
+                // render took too long; don't sleep, and start counting from now
+                _lastRenderElapsedTime = totalElapsed;
+            }
+            else
+            {
+                // render was completed in the allotted timeframe; sleep the rest of the time,
+                // and regardless start counting from the last completed frame time (to reduce jitter)
+                var sleepTime = duration - deltaElapsed;
+                Thread.Sleep(sleepTime);
+                _lastRenderElapsedTime += duration;
+            }
+
+            UpdateFpsAndThreadUtilization(_lastRenderElapsedTime, deltaElapsed);
+        }
+
+        private void UpdateFpsAndThreadUtilization(TimeSpan asOfElapsedTime, TimeSpan utilization)
+        {
+            _framesSinceLastFpsTime++;
+            _utilizedSinceLastFpsTime += utilization;
+
+            var timeSinceLastFpsUpdate = asOfElapsedTime - _lastFpsCalculatedElapsedTime;
+            if (timeSinceLastFpsUpdate >= TimeSpan.FromSeconds(1))
+            {
+                FPS = (float)(_framesSinceLastFpsTime / timeSinceLastFpsUpdate.TotalSeconds);
+                _lastFpsCalculatedElapsedTime = asOfElapsedTime;
+
+                ThreadUtilization = (float)(_utilizedSinceLastFpsTime.TotalSeconds / timeSinceLastFpsUpdate.TotalSeconds);
+                _utilizedSinceLastFpsTime = TimeSpan.Zero;
+
+                _framesSinceLastFpsTime = 0;
+            }
+        }
+
+        #endregion Timing
+
+        #region Window Management
 
         private (int w, int h) GetWindowSize()
         {
@@ -82,22 +175,6 @@ namespace UmfEngine
             }
         }
 
-        public Transform GetTransform()
-        {
-            // Note: respect_units_width, if that ever becomes an option
-
-            var viewport = GetEffectiveViewport();
-
-            var transform = new Transform();
-            transform = transform.GetTranslated(viewport.X, viewport.Y);
-            transform = transform.GetScaled(viewport.Height / _configuration.ScreenSizeInUnits);
-            
-            // TODO: allow for transform to be selected from other coordinates, like upper right, lower center, right center, very center, etc.
-            return transform;
-        }
-
-        #region Window Management
-
         public Vector2 GetScreenDimensionsInUnits()
         {
             // Note: respect_units_width, if that ever becomes an option
@@ -118,19 +195,50 @@ namespace UmfEngine
             return flags.HasFlag(SDL_WindowFlags.SDL_WINDOW_FULLSCREEN);
         }
 
-
         public void SetFullscreen(bool fullscreen)
         {
+            // Note: this can be used to enable exclusive fullscreen instead of borderless fullscreen
+            #if false
+            
+            var display = SDL3.SDL_GetDisplayForWindow(_window);
+            var displayMode = SDL3.SDL_GetCurrentDisplayMode(display);
+
+            Console.WriteLine($"Display {displayMode->displayID}: {displayMode->w}x{displayMode->h}@{displayMode->refresh_rate}");
+
+            if (!SDL3.SDL_SetWindowFullscreenMode(_window, displayMode))
+                throw UmfException.From(nameof(SDL3.SDL_SetWindowFullscreenMode));
+            #endif
+
             // TODO: do something if this fails???? Let the caller know or something
             SDL3.SDL_SetWindowFullscreen(_window, fullscreen);
 
             // if this fails... I guess no biggie
             SDL3.SDL_SyncWindow(_window);
+
+            if (fullscreen)
+                _logger.Debug("UMF: Set Fullscreen");
+            else
+                _logger.Debug("UMF: Set Windowed");
         }
 
         public void ToggleFullscreen()
         {
             SetFullscreen(!IsFullscreen());
+        }
+
+        public bool TrySetVSync(bool vsync)
+        {
+            int vsyncValue = vsync ? 1 : 0;
+            return SDL3.SDL_SetRenderVSync(_renderer, vsyncValue);
+        }
+
+        public bool GetVSync()
+        {
+            int vsync;
+            if (!SDL3.SDL_GetRenderVSync(_renderer, &vsync))
+                throw UmfException.From(nameof(SDL3.SDL_GetRenderVSync));
+
+            return vsync != 0;
         }
 
         public bool WindowHasFocus()
@@ -206,6 +314,20 @@ namespace UmfEngine
 
         #region Drawing
 
+        public Transform GetTransform()
+        {
+            // Note: respect_units_width, if that ever becomes an option
+
+            var viewport = GetEffectiveViewport();
+
+            var transform = new Transform();
+            transform = transform.GetTranslated(viewport.X, viewport.Y);
+            transform = transform.GetScaled(viewport.Height / _configuration.ScreenSizeInUnits);
+
+            // TODO: allow for transform to be selected from other coordinates, like upper right, lower center, right center, very center, etc.
+            return transform;
+        }
+
         public void ClearScreen(Color? color = null)
         {
             if (color == null)
@@ -217,7 +339,7 @@ namespace UmfEngine
                 throw UmfException.From(nameof(SDL3.SDL_RenderClear));
         }
 
-        public void CompleteDraw()
+        public void CompleteDraw(TimeSpan frameTime = default)
         {
             // draw masking borders if fixed aspect ratio is selected
             if (_configuration.HasFixedAspectRatio)
@@ -260,6 +382,8 @@ namespace UmfEngine
 
             if (!SDL3.SDL_RenderPresent(_renderer))
                 throw UmfException.From(nameof(SDL3.SDL_RenderPresent));
+
+            SleepForDurationSinceLastFrame(frameTime);
         }
 
         public void DrawLine(Transform t, Vector2 begin, Vector2 end, float thickness, Color color)
@@ -278,10 +402,6 @@ namespace UmfEngine
             InternalDrawThinLine(begin, end, color);
         }
 
-        #endregion Drawing
-
-        #region Internal
-
         private void InternalDrawThinLine(Vector2 begin, Vector2 end, Color color)
         {
             SetRenderDrawColor(color);
@@ -297,7 +417,7 @@ namespace UmfEngine
                 throw UmfException.From(nameof(SDL3.SDL_SetRenderDrawColor));
         }
 
-        #endregion Internal
+        #endregion Drawing
 
         #region Util
 
@@ -332,22 +452,5 @@ namespace UmfEngine
         }
 
         #endregion Util
-
-        public void Dispose()
-        {
-            if (_renderer != null)
-            {
-                SDL3.SDL_DestroyRenderer(_renderer);
-                _renderer = null;
-            }
-
-            if (_window != null)
-            {
-                SDL3.SDL_DestroyWindow(_window);
-                _window = null;
-            }
-
-            SDL3.SDL_Quit();
-        }
     }
 }

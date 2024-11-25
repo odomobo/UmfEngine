@@ -9,6 +9,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Game", "Game\Game.csproj", 
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Whip", "Whip\Whip.csproj", "{41F8552C-6E9E-4D48-822B-C81D660D9FCE}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VsyncTest", "VsyncTest\VsyncTest.csproj", "{C95A7C64-16A5-4B25-88BD-E33D9062E647}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -27,6 +29,10 @@ Global
 		{41F8552C-6E9E-4D48-822B-C81D660D9FCE}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{41F8552C-6E9E-4D48-822B-C81D660D9FCE}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{41F8552C-6E9E-4D48-822B-C81D660D9FCE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C95A7C64-16A5-4B25-88BD-E33D9062E647}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C95A7C64-16A5-4B25-88BD-E33D9062E647}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C95A7C64-16A5-4B25-88BD-E33D9062E647}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C95A7C64-16A5-4B25-88BD-E33D9062E647}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

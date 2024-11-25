@@ -8,6 +8,9 @@ namespace Whip
 {
     internal class Program
     {
+        public const double TargetFps = 144;
+        public static readonly TimeSpan TargetFrameTime = TimeSpan.FromSeconds(1 / TargetFps);
+
         static void Main(string[] args)
         {
             var config = new EngineConfiguration
@@ -18,14 +21,13 @@ namespace Whip
                 DefaultResolution = new Vector2(1920, 1080),
                 DefaultFullscreen = false,
                 DefaultCursorVisible = false,
+                DefaultClearColor = Color.Black,
             };
 
             using var engine = new Engine(config);
-            engine.ClearColor = Color.Black;
-            float targetFps = 144f;
-            var targetFrameTime = TimeSpan.FromSeconds(1 / targetFps);
 
-            int frameNumber = 0;
+            long frameNumber = 0;
+            TimeSpan engineTime = TimeSpan.Zero;
             while (true)
             {
                 var sw = Stopwatch.StartNew();
@@ -41,7 +43,7 @@ namespace Whip
                 if (engine.WindowHasFocus())
                 {
                     frameNumber++;
-                    TimeSpan engineTime = TimeSpan.FromSeconds(frameNumber / (double)targetFps);
+                    engineTime += TargetFrameTime;
 
                     // game logic here
                     // TODO
@@ -52,7 +54,7 @@ namespace Whip
 
                     var screenSize = engine.GetScreenDimensionsInUnits();
 
-                    var centerTransform = transform.GetTranslated(new Vector2(screenSize.X / 2, 2));
+                    var centerTransform = transform.GetTranslated(screenSize.X / 2, 2);
                     centerTransform = centerTransform.GetRotated(MathF.PI / 2);
                     DrawSpiral(engine, centerTransform, engineTime);
 
@@ -63,15 +65,7 @@ namespace Whip
 
                     DrawCursor(engine, transform, input.GetMousePosition(transform), engineTime);
 
-                    engine.CompleteDraw();
-                }
-
-                var frameTime = sw.Elapsed;
-                // if we took longer than the allotted frame time, then we don't try to wait
-                if (frameTime < targetFrameTime)
-                {
-                    //Console.WriteLine($"Sleeping for {targetFrameTime - frameTime}");
-                    Thread.Sleep(targetFrameTime - frameTime);
+                    engine.CompleteDraw(TargetFrameTime);
                 }
             }
         }
