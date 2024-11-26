@@ -11,6 +11,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Whip", "Whip\Whip.csproj", 
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VsyncTest", "VsyncTest\VsyncTest.csproj", "{C95A7C64-16A5-4B25-88BD-E33D9062E647}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AudioTest", "AudioTest\AudioTest.csproj", "{7E5233A9-1711-4CCF-9F3B-647DB3FD9512}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GridTest", "GridTest\GridTest.csproj", "{61C1066A-D0BE-498A-83FE-E7F3E536F3A3}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -33,6 +37,14 @@ Global
 		{C95A7C64-16A5-4B25-88BD-E33D9062E647}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{C95A7C64-16A5-4B25-88BD-E33D9062E647}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{C95A7C64-16A5-4B25-88BD-E33D9062E647}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7E5233A9-1711-4CCF-9F3B-647DB3FD9512}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7E5233A9-1711-4CCF-9F3B-647DB3FD9512}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7E5233A9-1711-4CCF-9F3B-647DB3FD9512}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7E5233A9-1711-4CCF-9F3B-647DB3FD9512}.Release|Any CPU.Build.0 = Release|Any CPU
+		{61C1066A-D0BE-498A-83FE-E7F3E536F3A3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{61C1066A-D0BE-498A-83FE-E7F3E536F3A3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{61C1066A-D0BE-498A-83FE-E7F3E536F3A3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{61C1066A-D0BE-498A-83FE-E7F3E536F3A3}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

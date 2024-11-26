@@ -1,4 +1,5 @@
-﻿using SDL;
+﻿using NLog;
+using SDL;
 using System.Diagnostics;
 using System.Drawing;
 using System.Numerics;
@@ -11,8 +12,19 @@ namespace Whip
         public const double TargetFps = 144;
         public static readonly TimeSpan TargetFrameTime = TimeSpan.FromSeconds(1 / TargetFps);
 
+        private static Logger Logger;
+        private static void ConfigureNLog()
+        {
+            LogManager.Setup().LoadConfiguration(builder => {
+                builder.ForLogger().FilterMinLevel(LogLevel.Debug).WriteToConsole();
+            });
+            Logger = LogManager.GetCurrentClassLogger();
+        }
+
         static void Main(string[] args)
         {
+            ConfigureNLog();
+
             var config = new EngineConfiguration
             {
                 Title = "Whip",
@@ -39,34 +51,30 @@ namespace Whip
                 if (input.WasKeyPressed(SDL_Scancode.SDL_SCANCODE_F))
                     engine.ToggleFullscreen();
 
-                // if engine doesn't have focus, we freeze the engine
-                if (engine.WindowHasFocus())
-                {
-                    frameNumber++;
-                    engineTime += TargetFrameTime;
+                frameNumber++;
+                engineTime += TargetFrameTime;
 
-                    // game logic here
-                    // TODO
+                // game logic here
+                // TODO
 
-                    // draw calls here
-                    var transform = engine.GetTransform();
-                    engine.ClearScreen();
+                // draw calls here
+                var transform = engine.GetTransform();
+                engine.ClearScreen();
 
-                    var screenSize = engine.GetScreenDimensionsInUnits();
+                var screenSize = engine.GetScreenDimensionsInUnits();
 
-                    var centerTransform = transform.GetTranslated(screenSize.X / 2, 2);
-                    centerTransform = centerTransform.GetRotated(MathF.PI / 2);
-                    DrawSpiral(engine, centerTransform, engineTime);
+                var centerTransform = transform.GetTranslated(screenSize.X / 2, 2);
+                centerTransform = centerTransform.GetRotated(MathF.PI / 2);
+                DrawSpiral(engine, centerTransform, engineTime);
 
-                    var mousePosition = input.GetMousePosition(transform);
+                var mousePosition = input.GetMousePosition(transform);
 
-                    //if (input.WasKeyPressed(SDL_Scancode.SDL_SCANCODE_PAUSE))
-                    //    Debugger.Break();
+                //if (input.WasKeyPressed(SDL_Scancode.SDL_SCANCODE_PAUSE))
+                //    Debugger.Break();
 
-                    DrawCursor(engine, transform, input.GetMousePosition(transform), engineTime);
+                DrawCursor(engine, transform, input.GetMousePosition(transform), engineTime);
 
-                    engine.CompleteDraw(TargetFrameTime);
-                }
+                engine.CompleteFrame(TargetFrameTime);
             }
         }
 
@@ -75,8 +83,8 @@ namespace Whip
             transform = transform.GetTranslated(cursorPosition);
             transform = transform.GetScaled(0.3f);
             transform = transform.GetRotated((float)engineTime.TotalSeconds*4);
-            engine.DrawThinLine(transform, new Vector2(-0.5f, 0), new Vector2(0.5f, 0), Color.White);
-            engine.DrawThinLine(transform, new Vector2(0, -0.5f), new Vector2(0, 0.5f), Color.White);
+            engine.DrawThinLine(transform, Color.White, new Vector2(-0.5f, 0), new Vector2(0.5f, 0));
+            engine.DrawThinLine(transform, Color.White, new Vector2(0, -0.5f), new Vector2(0, 0.5f));
         }
 
         static void DrawSpiral(Engine engine, Transform transform, TimeSpan engineTime)
@@ -89,7 +97,7 @@ namespace Whip
                 float xOffsetStart = MathF.Sin(-(float)engineTime.TotalMilliseconds * 0.004f + i * 0.3f)*0.02f;
                 float xOffsetEnd = MathF.Sin(-(float)engineTime.TotalMilliseconds * 0.004f + (i+1) * 0.3f)*0.02f;
 
-                engine.DrawThinLine(transform, new Vector2(xOffsetStart, 0), new Vector2(xOffsetEnd, -0.8f), color);
+                engine.DrawThinLine(transform, color, new Vector2(xOffsetStart, 0), new Vector2(xOffsetEnd, -0.8f));
                 transform = transform.GetTranslated(new Vector2(0, -0.8f));
                 //var angle = Math.Cos((engineTime.TotalMilliseconds / 4000));
                 var angle = 0;

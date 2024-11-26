@@ -1,4 +1,5 @@
-﻿using SDL;
+﻿using NLog;
+using SDL;
 using System.Diagnostics;
 using System.Drawing;
 using System.Numerics;
@@ -12,8 +13,19 @@ namespace VsyncTest
         public const float TargetFps = 144f;
         public static readonly TimeSpan TargetFrameTime = TimeSpan.FromSeconds(1 / TargetFps);
 
+        private static Logger Logger;
+        private static void ConfigureNLog()
+        {
+            LogManager.Setup().LoadConfiguration(builder => {
+                builder.ForLogger().FilterMinLevel(LogLevel.Debug).WriteToConsole();
+            });
+            Logger = LogManager.GetCurrentClassLogger();
+        }
+
         static void Main(string[] args)
         {
+            ConfigureNLog();
+
             var engineConfig = new EngineConfiguration
             {
                 HasFixedAspectRatio = true,
@@ -31,7 +43,7 @@ namespace VsyncTest
             var endTime = startTime + TargetFrameTime*99.5;
             while (DateTime.Now < endTime)
             {
-                engine.CompleteDraw();
+                engine.CompleteFrame();
                 drawCount++;
             }
             Console.WriteLine($"Drew {drawCount} in {DateTime.Now - startTime}");

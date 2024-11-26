@@ -6,6 +6,7 @@ using System.Diagnostics;
 using System.Drawing;
 using System.Linq;
 using System.Numerics;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -15,83 +16,65 @@ namespace UmfEngine
     public unsafe class Engine : IDisposable
     {
         private readonly Logger _logger;
-        private SDL_Window* _window;
-        private SDL_Renderer* _renderer;
-        private bool _shuttingDown = false;
         private readonly EngineConfiguration _configuration;
-        private readonly Stopwatch _stopwatch;
+        private bool _disposed = false;
+        
+        public Engine(EngineConfiguration configuration)
+        {
+            _logger = LogManager.GetCurrentClassLogger();
+            _configuration = configuration;
+
+            if (!SDL3.SDL_Init(SDL_InitFlags.SDL_INIT_VIDEO | SDL_InitFlags.SDL_INIT_AUDIO))
+                throw UmfException.From(nameof(SDL3.SDL_Init));
+
+            WindowInit();
+            RendererInit();
+            AudioInit();
+            TimingInit();
+
+            _logger.Info("UMF: Started Engine");
+            
+        }
+
+        public void Dispose()
+        {
+            if (_disposed)
+                return;
+
+            _disposed = true;
+
+            AudioDispose();
+
+            SDL3.SDL_DestroyRenderer(_renderer);
+
+            SDL3.SDL_DestroyWindow(_window);
+
+            SDL3.SDL_Quit();
+            _logger.Info("UMF: Stopped Engine");
+        }
+
+        public void CompleteFrame(TimeSpan frameTime = default)
+        {
+            RenderFrame();
+            AudioCleanupOldPlaybacks();
+            SleepForDurationSinceLastFrame(frameTime);
+        }
+
+        #region Timing
+
+        private Stopwatch _stopwatch;
         private TimeSpan _lastRenderElapsedTime;
         public float FPS { get; private set; } = 0;
         private TimeSpan _lastFpsCalculatedElapsedTime = TimeSpan.Zero;
         private int _framesSinceLastFpsTime = 0;
         public float ThreadUtilization { get; private set; } = 0;
         private TimeSpan _utilizedSinceLastFpsTime = TimeSpan.Zero;
-        public Color ClearColor { get; set; }
 
-        public Engine(EngineConfiguration configuration)
+        private void TimingInit()
         {
-            _logger = LogManager.GetCurrentClassLogger();
-            _configuration = configuration;
-
-            if (!SDL3.SDL_Init(SDL_InitFlags.SDL_INIT_VIDEO))
-                throw UmfException.From(nameof(SDL3.SDL_Init));
-
-            SDL_WindowFlags windowFlags = default;
-            if (configuration.DefaultFullscreen)
-                windowFlags |= SDL_WindowFlags.SDL_WINDOW_FULLSCREEN;
-
-            if (configuration.AllowResize)
-                windowFlags |= SDL_WindowFlags.SDL_WINDOW_RESIZABLE;
-
-            _window = SDL3.SDL_CreateWindow((Utf8String)configuration.Title, (int)configuration.DefaultResolution.X, (int)configuration.DefaultResolution.Y, windowFlags);
-            if (_window == null)
-                throw UmfException.From(nameof(SDL3.SDL_CreateWindow));
-
-            _renderer = CreateRenderer(_window);
-            if (_renderer == null)
-                throw UmfException.From(nameof(SDL3.SDL_CreateRenderer));
-
-            // try to set vsync, but don't raise a fuss if we can't
-            TrySetVSync(configuration.DefaultVSync);
-
-            SetCursorVisible(configuration.DefaultCursorVisible);
-            ClearColor = configuration.DefaultClearColor;
-
-            _logger.Info("UMF: Started Engine");
             _stopwatch = Stopwatch.StartNew();
             _lastRenderElapsedTime = TimeSpan.Zero;
         }
-
-        private SDL_Renderer* CreateRenderer(SDL_Window* window)
-        {
-            return SDL3.SDL_CreateRenderer(window, (byte*)null);
-
-            // Disabling this, as it doesn't seem to do anything on my system
-            //using var propsBuilder = new PropsBuilder();
-            //propsBuilder.SetPointerProperty(SDL3.SDL_PROP_RENDERER_CREATE_WINDOW_POINTER, window);
-            //propsBuilder.SetNumberProperty(SDL3.SDL_PROP_RENDERER_CREATE_PRESENT_VSYNC_NUMBER, 1);
-            //return SDL3.SDL_CreateRendererWithProperties(propsBuilder.Build());
-        }
-
-        public void Dispose()
-        {
-            if (_renderer != null)
-            {
-                SDL3.SDL_DestroyRenderer(_renderer);
-                _renderer = null;
-            }
-
-            if (_window != null)
-            {
-                SDL3.SDL_DestroyWindow(_window);
-                _window = null;
-            }
-
-            SDL3.SDL_Quit();
-            _logger.Info("UMF: Stopped Engine");
-        }
-
-        #region Timing
 
         private void SleepForDurationSinceLastFrame(TimeSpan duration)
         {
@@ -136,6 +119,22 @@ namespace UmfEngine
         #endregion Timing
 
         #region Window Management
+
+        private SDL_Window* _window;
+
+        private void WindowInit()
+        {
+            SDL_WindowFlags windowFlags = default;
+            if (_configuration.DefaultFullscreen)
+                windowFlags |= SDL_WindowFlags.SDL_WINDOW_FULLSCREEN;
+
+            if (_configuration.AllowResize)
+                windowFlags |= SDL_WindowFlags.SDL_WINDOW_RESIZABLE;
+
+            _window = SDL3.SDL_CreateWindow((Utf8String)_configuration.Title, (int)_configuration.DefaultResolution.X, (int)_configuration.DefaultResolution.Y, windowFlags);
+            if (_window == null)
+                throw UmfException.From(nameof(SDL3.SDL_CreateWindow));
+        }
 
         private (int w, int h) GetWindowSize()
         {
@@ -259,12 +258,16 @@ namespace UmfEngine
 
         #region Input
 
+        private bool _shuttingDown = false;
+        public Input Input { get; private set; }
+
         public Input GetInput()
         {
             // TODO: use text input events to get text the user has typed... I guess
 
             var keysPressed = new HashSet<SDL_Scancode>();
             var keysRepeated = new HashSet<SDL_Scancode>();
+            var mouseButtonsPressed = new HashSet<SDLButton>();
 
             SDL_Event e;
             while (SDL3.SDL_PollEvent(&e))
@@ -284,7 +287,10 @@ namespace UmfEngine
                         {
                             keysPressed.Add(e.key.scancode);
                         }
+                        break;
 
+                    case SDL_EventType.SDL_EVENT_MOUSE_BUTTON_DOWN:
+                        mouseButtonsPressed.Add(e.button.Button);
                         break;
 
                     // TODO: find all keys pressed
@@ -300,19 +306,44 @@ namespace UmfEngine
             }
 
             float mouseX, mouseY;
-            var mouseButtons = SDL3.SDL_GetMouseState(&mouseX, &mouseY);
+            var mouseButtonsDown = SDL3.SDL_GetMouseState(&mouseX, &mouseY);
 
             // TODO: capture mouse clicked events, capture mouse down state
 
-            return new Input(inputKeyboardState, keysPressed, keysRepeated, new Vector2(mouseX, mouseY))
+            Input = new Input(
+                inputKeyboardState, 
+                keysPressed, 
+                keysRepeated, 
+                new Vector2(mouseX, mouseY),
+                mouseButtonsDown, 
+                mouseButtonsPressed)
             {
                 ShuttingDown = _shuttingDown,
             };
+
+            return Input;
         }
 
         #endregion Input
 
         #region Drawing
+
+        private SDL_Renderer* _renderer;
+        public Color ClearColor { get; set; }
+        private List<SDL_Vertex> _vertexRenderQueue = new List<SDL_Vertex>();
+
+        private void RendererInit()
+        {
+            _renderer = SDL3.SDL_CreateRenderer(_window, (byte*)null);
+            if (_renderer == null)
+                throw UmfException.From(nameof(SDL3.SDL_CreateRenderer));
+
+            // try to set vsync, but don't raise a fuss if we can't
+            TrySetVSync(_configuration.DefaultVSync);
+
+            SetCursorVisible(_configuration.DefaultCursorVisible);
+            ClearColor = _configuration.DefaultClearColor;
+        }
 
         public Transform GetTransform()
         {
@@ -339,7 +370,23 @@ namespace UmfEngine
                 throw UmfException.From(nameof(SDL3.SDL_RenderClear));
         }
 
-        public void CompleteDraw(TimeSpan frameTime = default)
+        private void FlushBatchedGeometry()
+        {
+            if (!_vertexRenderQueue.Any())
+                return;
+            
+            var vertices = CollectionsMarshal.AsSpan(_vertexRenderQueue);
+
+            fixed (SDL_Vertex* vertexPointer = &vertices[0])
+            {
+                if (!SDL3.SDL_RenderGeometry(_renderer, null, vertexPointer, vertices.Length, null, 0))
+                    throw UmfException.From(nameof(SDL3.SDL_RenderGeometry));
+            }
+            
+            _vertexRenderQueue.Clear();
+        }
+
+        private void DrawMaskingBorders()
         {
             // draw masking borders if fixed aspect ratio is selected
             if (_configuration.HasFixedAspectRatio)
@@ -355,7 +402,7 @@ namespace UmfEngine
                     var expectedWidth = windowHeight * _configuration.FixedAspectRatio;
                     var halfPadding = (int)((windowWidth - expectedWidth) / 2);
                     var leftRect = new SDL_FRect { x = 0, y = 0, w = halfPadding, h = windowHeight };
-                    var rightRect = new SDL_FRect { x = windowWidth-halfPadding, y = 0, w = halfPadding, h = windowHeight };
+                    var rightRect = new SDL_FRect { x = windowWidth - halfPadding, y = 0, w = halfPadding, h = windowHeight };
 
                     if (!SDL3.SDL_RenderFillRect(_renderer, &leftRect))
                         throw UmfException.From(nameof(SDL3.SDL_RenderFillRect));
@@ -370,7 +417,7 @@ namespace UmfEngine
                     var halfPadding = (int)((windowHeight - expectedHeight) / 2);
 
                     var topRect = new SDL_FRect { x = 0, y = 0, w = windowWidth, h = halfPadding };
-                    var bottomRect = new SDL_FRect { x = 0, y = windowHeight - halfPadding, w = windowWidth, h = halfPadding};
+                    var bottomRect = new SDL_FRect { x = 0, y = windowHeight - halfPadding, w = windowWidth, h = halfPadding };
 
                     if (!SDL3.SDL_RenderFillRect(_renderer, &topRect))
                         throw UmfException.From(nameof(SDL3.SDL_RenderFillRect));
@@ -379,31 +426,167 @@ namespace UmfEngine
                         throw UmfException.From(nameof(SDL3.SDL_RenderFillRect));
                 }
             }
+        }
+
+        private void RenderFrame()
+        {
+            FlushBatchedGeometry();
+            DrawMaskingBorders();
 
             if (!SDL3.SDL_RenderPresent(_renderer))
                 throw UmfException.From(nameof(SDL3.SDL_RenderPresent));
-
-            SleepForDurationSinceLastFrame(frameTime);
         }
 
-        public void DrawLine(Transform t, Vector2 begin, Vector2 end, float thickness, Color color)
+        public void DrawLine(Transform t, float thickness, Color color, Vector2 begin, Vector2 end)
         {
             begin = t.TransformVector(begin);
             end = t.TransformVector(end);
             thickness = thickness * t.Scale;
-            // if thickness is 1, draw thin line, otherwise draw thick line
-            throw new NotImplementedException();
+            if (thickness <= 1)
+            {
+                // TODO: scale color opacity with thickness?
+                InternalDrawLine(1, color, begin, end);
+            }
+            else
+            {
+                InternalDrawLine(thickness, color, begin, end);
+            }
         }
 
-        public void DrawThinLine(Transform t, Vector2 begin, Vector2 end, Color color)
+        public void DrawLine(Transform t, float thickness, Color color, float x1, float y1, float x2, float y2)
+        {
+            DrawLine(t, thickness, color, new Vector2(x1, y1), new Vector2(x2, y2));
+        }
+
+        public void DrawLines(Transform t, float thickness, Color color, params Vector2[] vectors)
+        {
+            if (vectors.Length < 2)
+                throw new InvalidOperationException($"{nameof(DrawLines)} must be called with at least 2 vectors");
+
+            for (int i = 0; i <= vectors.Length-2; i++)
+            {
+                DrawLine(t, thickness, color, vectors[i], vectors[i+1]);
+            }
+        }
+
+        public void DrawLinesClosed(Transform t, float thickness, Color color, params Vector2[] vectors)
+        {
+            if (vectors.Length < 2)
+                throw new InvalidOperationException($"{nameof(DrawLinesClosed)} must be called with at least 2 vectors");
+
+            for (int i = 0; i <= vectors.Length-2; i++)
+            {
+                DrawLine(t, thickness, color, vectors[i], vectors[i + 1]);
+            }
+            DrawLine(t, thickness, color, vectors[vectors.Length-1], vectors[0]);
+        }
+
+        public void DrawLines(Transform t, float thickness, Color color, params float[] coords)
+        {
+            if (coords.Length < 4)
+                throw new InvalidOperationException($"{nameof(DrawLines)} must be called with at least 4 coords");
+
+            if (coords.Length % 2 == 1)
+                throw new InvalidOperationException($"{nameof(DrawLines)} must be called with an even number of coords");
+
+            // stride of 2
+            for (int i = 0; i <= coords.Length-4; i += 2)
+            {
+                DrawLine(t, thickness, color, coords[i], coords[i+1], coords[i+2], coords[i+3]);
+            }
+        }
+
+        public void DrawLinesClosed(Transform t, float thickness, Color color, params float[] coords)
+        {
+            if (coords.Length < 4)
+                throw new InvalidOperationException($"{nameof(DrawLinesClosed)} must be called with at least 4 coords");
+
+            if (coords.Length % 2 == 1)
+                throw new InvalidOperationException($"{nameof(DrawLinesClosed)} must be called with an even number of coords");
+
+            for (int i = 0; i <= coords.Length-4; i += 2)
+            {
+                DrawLine(t, thickness, color, coords[i], coords[i+1], coords[i+2], coords[i+3]);
+            }
+            DrawLine(t, thickness, color, coords[coords.Length-2], coords[coords.Length-1], coords[0], coords[1]);
+        }
+
+        public void DrawThinLine(Transform t, Color color, Vector2 begin, Vector2 end)
         {
             begin = t.TransformVector(begin);
             end = t.TransformVector(end);
-            InternalDrawThinLine(begin, end, color);
+            
+            InternalDrawLine(1, color, begin, end);
         }
 
-        private void InternalDrawThinLine(Vector2 begin, Vector2 end, Color color)
+        public void DrawThinLine(Transform t, Color color, float x1, float y1, float x2, float y2)
         {
+            DrawThinLine(t, color, new Vector2(x1, y1), new Vector2(x2, y2));
+        }
+
+        private void InternalDrawLine(float thickness, Color color, Vector2 begin, Vector2 end)
+        {
+            var direction = end - begin;
+            var perpendicular = new Vector2(direction.Y, -direction.X);
+            var normalizedPerpendicular = perpendicular / perpendicular.Length();
+            var offset = normalizedPerpendicular * thickness / 2;
+
+            Span<SDL_FPoint> scoords =
+            [
+                Vector2ToSdlFPoint(begin + offset),
+                Vector2ToSdlFPoint(begin - offset),
+                Vector2ToSdlFPoint(end - offset),
+                Vector2ToSdlFPoint(end + offset),
+            ];
+
+            var fcolor = ColorToSdlFColor(color);
+
+            Span<SDL_Vertex> vertices =
+            [
+                new SDL_Vertex
+                {
+                    position = scoords[0],
+                    color = fcolor,
+                },
+                new SDL_Vertex
+                {
+                    position = scoords[1],
+                    color = fcolor,
+                },
+                new SDL_Vertex
+                {
+                    position = scoords[2],
+                    color = fcolor,
+                },
+                new SDL_Vertex
+                {
+                    position = scoords[2],
+                    color = fcolor,
+                },
+                new SDL_Vertex
+                {
+                    position = scoords[3],
+                    color = fcolor,
+                },
+                new SDL_Vertex
+                {
+                    position = scoords[0],
+                    color = fcolor,
+                },
+            ];
+
+            _vertexRenderQueue.AddRange(vertices);
+
+            // Uncommment this for debugging purposes, if we're getting wrong ordering of geometry
+            //FlushBatchedGeometry();
+        }
+
+        // Don't use this, it's slow. Better to use InternalDrawThinLine with a thickness of 1
+        [Obsolete]
+        private void InternalDrawThinLine(Color color, Vector2 begin, Vector2 end)
+        {
+            FlushBatchedGeometry();
+
             SetRenderDrawColor(color);
 
             // TODO: allow other thicknesses
@@ -417,7 +600,76 @@ namespace UmfEngine
                 throw UmfException.From(nameof(SDL3.SDL_SetRenderDrawColor));
         }
 
+        private static SDL_FPoint Vector2ToSdlFPoint(Vector2 vector)
+        {
+            return new SDL_FPoint
+            {
+                x = vector.X,
+                y = vector.Y,
+            };
+        }
+
+        private static SDL_FColor ColorToSdlFColor(Color color)
+        {
+            return new SDL_FColor
+            {
+                r = color.R / 255f,
+                g = color.G / 255f,
+                b = color.B / 255f,
+                a = color.A / 255f,
+            };
+        }
+
         #endregion Drawing
+
+        #region Audio
+
+        private SDL_AudioDeviceID _audioOutDevice;
+        private List<AudioPlayback> _audioPlaybacks = new List<AudioPlayback>();
+
+        private void AudioInit()
+        {
+            // start audio
+            _audioOutDevice = SDL3.SDL_OpenAudioDevice(SDL3.SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, null);
+            if (_audioOutDevice == 0)
+                throw UmfException.From(nameof(SDL3.SDL_OpenAudioDevice));
+        }
+
+        private void AudioDispose()
+        {
+            foreach (var audioPlayback in _audioPlaybacks)
+            {
+                audioPlayback.Dispose();
+            }
+
+            // this probably isn't needed
+            SDL3.SDL_CloseAudioDevice(SDL3.SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK);
+        }
+
+        private void AudioCleanupOldPlaybacks()
+        {
+            for (int i = _audioPlaybacks.Count-1; i >= 0; i--)
+            {
+                var audioPlayback = _audioPlaybacks[i];
+                if (audioPlayback.Completed())
+                {
+                    audioPlayback.Dispose();
+                    _audioPlaybacks.RemoveAt(i);
+                }
+            }
+        }
+
+        public AudioClip LoadAudioClip(string path)
+        {
+            return new AudioClip(path);
+        }
+
+        public void PlayAudioClip(AudioClip clip, float gain = 1f, float playbackSpeed = 1f)
+        {
+            _audioPlaybacks.Add(new AudioPlayback(clip, _audioOutDevice, gain, playbackSpeed));
+        }
+
+        #endregion Audio
 
         #region Util
 

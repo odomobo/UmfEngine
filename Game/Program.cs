@@ -28,6 +28,8 @@ namespace Game
             LogManager.Setup().LoadConfigurationFromSection(appConfiguration);
         }
 
+        public const float FloorY = 34;
+
         static void Main(string[] args)
         {
             var appConfiguration = GetAppSettings();
@@ -43,77 +45,40 @@ namespace Game
                 DefaultFullscreen = false,
             };
 
-            using var engine = new Engine(engineConfig);
+            using var e = new Engine(engineConfig);
+            
+            var tank = new Tank { X = 5, Y = FloorY };
 
             int frameNumber = 0;
             while (true)
             {
                 var sw = Stopwatch.StartNew();
 
-                var input = engine.GetInput();
+                var input = e.GetInput();
                 if (input.ShuttingDown || input.WasKeyPressed(SDL_Scancode.SDL_SCANCODE_ESCAPE))
                     break;
 
                 if (input.WasKeyPressed(SDL_Scancode.SDL_SCANCODE_F))
-                    engine.ToggleFullscreen();
+                    e.ToggleFullscreen();
 
-                // if engine doesn't have focus, we freeze the engine
-                if (engine.WindowHasFocus())
-                {
-                    frameNumber++;
+                frameNumber++;
 
-                    // game logic here
-                    // TODO
+                // game logic here
+                // TODO
 
-                    // draw calls here
-                    var transform = engine.GetTransform();
-                    engine.ClearScreen();
+                // draw calls here
+                var t = e.GetTransform();
+                e.ClearScreen();
 
-                    // draw obnoxious lines to see the masking
+                DrawFloor(e);
+                tank.Draw(e, t);
 
-                    // TODO: remove, testing
-                    //var numx = frameNumber % 100;
-                    //var obnoxiousTransform = transform.GetTranslated(0.5f * numx, 0);
-                    var obnoxiousTransform = transform;
+                DrawCursor(e, input);
 
-                    engine.DrawThinLine(obnoxiousTransform, new Vector2(-1000, 18), new Vector2(1000, 18), Color.Purple);
-                    engine.DrawThinLine(obnoxiousTransform, new Vector2(32, -1000), new Vector2(32, 1000), Color.Purple);
+                e.CompleteFrame(TargetFrameTime);
+                //engine.CompleteFrame();
 
-                    int stride = 1;
-                    for (int x = 0; x < 64; x+=stride)
-                    {
-                        for (int y = 0; y < 36; y+=stride)
-                        {
-                            var color = Color.Blue;
-                            if (x == 0 || x == 63 || y == 0 || y == 35)
-                                color = Color.Red;
-                            else
-                                continue;
-
-                            var tmpTransform = transform.GetTranslated(x, y);
-
-                            // TODO: remove; testing
-                            //var num = frameNumber % 100;
-                            //tmpTransform = tmpTransform.GetTranslated(0.5f * num, 0);
-
-                            // draw X
-                            engine.DrawThinLine(tmpTransform, new Vector2(0.1f, 0.1f), new Vector2(0.9f, 0.9f), color);
-                            engine.DrawThinLine(tmpTransform, new Vector2(0.1f, 0.9f), new Vector2(0.9f, 0.1f), color);
-
-                            // draw box
-                            engine.DrawThinLine(tmpTransform, new Vector2(0.1f, 0.1f), new Vector2(0.1f, 0.9f), color);
-                            engine.DrawThinLine(tmpTransform, new Vector2(0.1f, 0.9f), new Vector2(0.9f, 0.9f), color);
-                            engine.DrawThinLine(tmpTransform, new Vector2(0.9f, 0.9f), new Vector2(0.9f, 0.1f), color);
-                            engine.DrawThinLine(tmpTransform, new Vector2(0.9f, 0.1f), new Vector2(0.1f, 0.1f), color);
-                        }
-                    }
-
-                    DrawCursor(engine, input);
-
-                    engine.CompleteDraw(TargetFrameTime);
-
-                    Console.WriteLine($"FPS: {engine.FPS:0.00}; thread utilization: {engine.ThreadUtilization*100:0.0}%");
-                }
+                Logger.Info($"FPS: {e.FPS:0.00}; thread utilization: {e.ThreadUtilization*100:0.0}%");
             }
         }
 
@@ -127,8 +92,17 @@ namespace Game
             transform = transform.GetScaled(1f); // cursor size of 1 unit
             // we probably don't need to rotate
             //transform = transform.GetRotated((float)engineTime.TotalSeconds * 4);
-            engine.DrawThinLine(transform, new Vector2(-0.5f, 0), new Vector2(0.5f, 0), cursorColor);
-            engine.DrawThinLine(transform, new Vector2(0, -0.5f), new Vector2(0, 0.5f), cursorColor);
+            engine.DrawThinLine(transform, cursorColor, new Vector2(-0.5f, 0), new Vector2(0.5f, 0));
+            engine.DrawThinLine(transform, cursorColor, new Vector2(0, -0.5f), new Vector2(0, 0.5f));
+        }
+
+        private static void DrawFloor(Engine e)
+        {
+            var floorColor = Color.IndianRed;
+            var floorThickness = 0.16f;
+
+            var t = e.GetTransform();
+            e.DrawLine(t, floorThickness, floorColor, 0, FloorY + floorThickness / 2, 64, FloorY + floorThickness / 2);
         }
     }
 }
