@@ -36,6 +36,7 @@ namespace UmfEngine
             return _keyboardState[(uint)scancode];
         }
 
+        // TODO: I think use SDL_Keycode instead of SDL_Scancode, so ctrl+c will register differently than c
         public bool WasKeyPressed(SDL_Scancode scancode, bool allowRepeat = false) 
         {
             if (_keysPressed.Contains(scancode))

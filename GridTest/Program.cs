@@ -14,6 +14,8 @@ namespace Game
         public const double TargetFps = 60;
         public static readonly TimeSpan TargetFrameTime = TimeSpan.FromSeconds(1 / TargetFps);
 
+        public const bool StressTest = true;
+
         private static Logger Logger;
         private static void ConfigureNLog()
         {
@@ -34,11 +36,13 @@ namespace Game
                 DefaultCursorVisible = false,
                 DefaultVSync = false,
                 DefaultFullscreen = false,
+                UseRenderCompatibilityMode = true,
             };
 
             using var engine = new Engine(engineConfig);
 
             int frameNumber = 0;
+            var funCircleCoord = new Vector2(1, 2);
             while (true)
             {
                 var sw = Stopwatch.StartNew();
@@ -100,13 +104,21 @@ namespace Game
                         engine.DrawThinLine(tmpTransform, color, new Vector2(0.1f, 0.9f), new Vector2(0.9f, 0.9f));
                         engine.DrawThinLine(tmpTransform, color, new Vector2(0.9f, 0.9f), new Vector2(0.9f, 0.1f));
                         engine.DrawThinLine(tmpTransform, color, new Vector2(0.9f, 0.1f), new Vector2(0.1f, 0.1f));
+
+                        engine.DrawCircle(tmpTransform, 0, Color.White, 0.5f, 0.5f);
+
                     }
                 }
 
+                funCircleCoord = funCircleCoord + new Vector2(0.001f, 0.001666f);
+                engine.DrawCircle(transform, 0, Color.LightGreen, funCircleCoord);
+
                 DrawCursor(engine, input);
 
-                engine.CompleteFrame(TargetFrameTime);
-                //engine.CompleteFrame();
+                if (StressTest)
+                    engine.CompleteFrame();
+                else
+                    engine.CompleteFrame(TargetFrameTime);
 
                 Console.WriteLine($"FPS: {engine.FPS:0.00}; thread utilization: {engine.ThreadUtilization * 100:0.0}%");
             }

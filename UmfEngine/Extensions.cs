@@ -33,5 +33,23 @@ namespace UmfEngine
         {
             return (float)random.DoubleBetween(min, max);
         }
+
+        public static float GetAngle(this Vector2 v)
+        {
+            v = v / v.Length();
+
+            var angle = MathF.Atan2(v.X, -v.Y);
+            if (angle < 0) 
+                angle += MathF.Tau;
+
+            return angle;
+        }
+
+        public static Vector2 GetRotated(this Vector2 v, float angle)
+        {
+            float x = v.X * MathF.Cos(angle) + v.Y * -MathF.Sin(angle);
+            float y = v.X * MathF.Sin(angle) + v.Y * MathF.Cos(angle);
+            return new Vector2(x, y);
+        }
     }
 }

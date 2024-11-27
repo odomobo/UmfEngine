@@ -14,9 +14,13 @@ namespace Game
     {
         // We're just gonna use 60 FPS because every computer can handle it, and I can't be bothered to separate game logic from rendering.
         // We're also disabling vsync, because in pathological situations, it can cause extreme lag.
-        public const double TargetFps = 60;
-        public static readonly TimeSpan TargetFrameTime = TimeSpan.FromSeconds(1 / TargetFps);
+        public const float TargetFps = 60;
+        public static readonly TimeSpan DeltaTime = TimeSpan.FromSeconds(1 / TargetFps);
+        public static readonly float DeltaTimeSeconds = 1 / TargetFps;
+        public static readonly Vector2 GravityUnitsPerSecond = new Vector2(0, 20f);
+        public static readonly Vector2 GravityPerFrame = GravityUnitsPerSecond * DeltaTimeSeconds;
         private static Logger Logger;
+        public static List<IGameObject> FriendlyProjectiles = new List<IGameObject>();
 
         private static IConfigurationRoot GetAppSettings()
         {
@@ -47,7 +51,7 @@ namespace Game
 
             using var e = new Engine(engineConfig);
             
-            var tank = new Tank { X = 5, Y = FloorY };
+            var tank = new Tank { Position = new Vector2(5, FloorY) };
 
             int frameNumber = 0;
             while (true)
@@ -64,18 +68,27 @@ namespace Game
                 frameNumber++;
 
                 // game logic here
-                // TODO
+                var t = e.GetTransform();
+                tank.Update(e, t);
+                foreach (var projectile in FriendlyProjectiles)
+                {
+                    projectile.Update(e, t);
+                }
 
                 // draw calls here
-                var t = e.GetTransform();
                 e.ClearScreen();
 
                 DrawFloor(e);
                 tank.Draw(e, t);
 
+                foreach (var projectile in FriendlyProjectiles)
+                {
+                    projectile.Draw(e, t);
+                }
+
                 DrawCursor(e, input);
 
-                e.CompleteFrame(TargetFrameTime);
+                e.CompleteFrame(DeltaTime);
                 //engine.CompleteFrame();
 
                 Logger.Info($"FPS: {e.FPS:0.00}; thread utilization: {e.ThreadUtilization*100:0.0}%");

@@ -28,12 +28,13 @@ namespace Whip
             var config = new EngineConfiguration
             {
                 Title = "Whip",
-                ScreenSizeInUnits = 24,
+                ScreenSizeInUnits = 21,
                 AllowResize = true,
                 DefaultResolution = new Vector2(1920, 1080),
                 DefaultFullscreen = false,
                 DefaultCursorVisible = false,
                 DefaultClearColor = Color.Black,
+                Quality = Quality.High,
             };
 
             using var engine = new Engine(config);
@@ -63,7 +64,7 @@ namespace Whip
 
                 var screenSize = engine.GetScreenDimensionsInUnits();
 
-                var centerTransform = transform.GetTranslated(screenSize.X / 2, 2);
+                var centerTransform = transform.GetTranslated(screenSize.X / 2, 1);
                 centerTransform = centerTransform.GetRotated(MathF.PI / 2);
                 DrawSpiral(engine, centerTransform, engineTime);
 
@@ -91,19 +92,24 @@ namespace Whip
         {
             var scale = Math.Sin((engineTime.TotalMilliseconds / 4000));
             transform = transform.GetScaled(1 + (float)scale * 0.1f);
+            var startingTransform = transform;
+            Color color = Color.Magenta;
             for (int i = 0; i < 6000; i++)
             {
-                var color = Engine.ColorFromHSV((float)engineTime.TotalMilliseconds * 0.1f + i * 0.1f, 0.8f, 1);
+                color = Engine.ColorFromHSV((float)engineTime.TotalMilliseconds * 0.1f + i * 0.1f, 0.8f, 1);
                 float xOffsetStart = MathF.Sin(-(float)engineTime.TotalMilliseconds * 0.004f + i * 0.3f)*0.02f;
                 float xOffsetEnd = MathF.Sin(-(float)engineTime.TotalMilliseconds * 0.004f + (i+1) * 0.3f)*0.02f;
 
-                engine.DrawThinLine(transform, color, new Vector2(xOffsetStart, 0), new Vector2(xOffsetEnd, -0.8f));
+                //engine.DrawThinLine(transform, color, new Vector2(xOffsetStart, 0), new Vector2(xOffsetEnd, -0.8f));
+                engine.DrawLine(transform, 0.1f, color, new Vector2(xOffsetStart, 0), new Vector2(xOffsetEnd, -0.8f));
+
                 transform = transform.GetTranslated(new Vector2(0, -0.8f));
                 //var angle = Math.Cos((engineTime.TotalMilliseconds / 4000));
                 var angle = 0;
                 transform = transform.GetRotated(0.09f * (1 + (float)angle*0.15f));
                 transform = transform.GetScaled(0.9995f);
             }
+            engine.DrawCircle(startingTransform, 0.897f, color, 8.88f, -0.457f);
         }
     }
 }

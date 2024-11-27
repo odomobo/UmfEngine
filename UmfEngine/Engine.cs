@@ -6,9 +6,11 @@ using System.Diagnostics;
 using System.Drawing;
 using System.Linq;
 using System.Numerics;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace UmfEngine
 {
@@ -45,7 +47,7 @@ namespace UmfEngine
 
             AudioDispose();
 
-            SDL3.SDL_DestroyRenderer(_renderer);
+            RendererDispose();
 
             SDL3.SDL_DestroyWindow(_window);
 
@@ -330,7 +332,7 @@ namespace UmfEngine
 
         private SDL_Renderer* _renderer;
         public Color ClearColor { get; set; }
-        private List<SDL_Vertex> _vertexRenderQueue = new List<SDL_Vertex>();
+        public Quality Quality { get; set; }
 
         private void RendererInit()
         {
@@ -343,6 +345,81 @@ namespace UmfEngine
 
             SetCursorVisible(_configuration.DefaultCursorVisible);
             ClearColor = _configuration.DefaultClearColor;
+            Quality = _configuration.Quality;
+
+            CreateCircleSurfaceAndTexture(512);
+        }
+
+        private void RendererDispose()
+        {
+            SDL3.SDL_DestroyTexture(_circleTexture);
+            SDL3.SDL_DestroySurface(_circleSurface);
+            SDL3.SDL_DestroyRenderer(_renderer);
+        }
+
+        private List<string> GetRenderersList()
+        {
+            var ret = new List<string>();
+            var numberRenderers = SDL3.SDL_GetNumRenderDrivers();
+            for (int i = 0; i < numberRenderers; i++)
+            {
+                var renderDriver = SDL3.SDL_GetRenderDriver(i);
+                if (renderDriver == null)
+                    throw new Exception($"Got null when calling {nameof(SDL3.SDL_GetRenderDriver)}");
+
+                ret.Add(renderDriver);
+            }
+            return ret;
+        }
+
+        private SDL_Surface* _circleSurface;
+        private SDL_Texture* _circleTexture;
+        private void CreateCircleSurfaceAndTexture(int diameter)
+        {
+            float radius = diameter / 2f;
+            float centerPoint = (diameter-1) / 2f; // the centerpoint is halfway between the min (0) and max (diameter-1) pixel
+            float radiusSquared = radius*radius;
+
+            _circleSurface = SDL3.SDL_CreateSurface(diameter, diameter, SDL3.SDL_PIXELFORMAT_RGBA32);
+            if (_circleSurface == null)
+                throw UmfException.From(nameof(SDL3.SDL_CreateSurface));
+
+            if (!SDL3.SDL_LockSurface(_circleSurface))
+                throw UmfException.From(nameof(SDL3.SDL_LockSurface));
+
+            for (int i = 0; i < diameter; i++)
+            {
+                var pixel = (byte*)_circleSurface->pixels + (_circleSurface->pitch*i);
+                for (int j = 0; j < diameter; j++)
+                {
+                    float x = i - centerPoint;
+                    float y = j - centerPoint;
+
+                    var distanceSquared = x*x + y*y;
+                    if (distanceSquared <= radiusSquared)
+                    {
+                        // solid white color
+                        *pixel++ = 0xFF;
+                        *pixel++ = 0xFF;
+                        *pixel++ = 0xFF;
+                        *pixel++ = 0xFF;
+                    }
+                    else
+                    {
+                        // transparent white color
+                        *pixel++ = 0xFF;
+                        *pixel++ = 0xFF;
+                        *pixel++ = 0xFF;
+                        *pixel++ = 0x00;
+                    }
+                }
+            }
+
+            SDL3.SDL_UnlockSurface(_circleSurface);
+
+            _circleTexture = SDL3.SDL_CreateTextureFromSurface(_renderer, _circleSurface);
+            if (_circleTexture == null)
+                throw UmfException.From(nameof(SDL3.SDL_CreateTextureFromSurface));
         }
 
         public Transform GetTransform()
@@ -368,22 +445,6 @@ namespace UmfEngine
 
             if (!SDL3.SDL_RenderClear(_renderer))
                 throw UmfException.From(nameof(SDL3.SDL_RenderClear));
-        }
-
-        private void FlushBatchedGeometry()
-        {
-            if (!_vertexRenderQueue.Any())
-                return;
-            
-            var vertices = CollectionsMarshal.AsSpan(_vertexRenderQueue);
-
-            fixed (SDL_Vertex* vertexPointer = &vertices[0])
-            {
-                if (!SDL3.SDL_RenderGeometry(_renderer, null, vertexPointer, vertices.Length, null, 0))
-                    throw UmfException.From(nameof(SDL3.SDL_RenderGeometry));
-            }
-            
-            _vertexRenderQueue.Clear();
         }
 
         private void DrawMaskingBorders()
@@ -430,7 +491,6 @@ namespace UmfEngine
 
         private void RenderFrame()
         {
-            FlushBatchedGeometry();
             DrawMaskingBorders();
 
             if (!SDL3.SDL_RenderPresent(_renderer))
@@ -526,72 +586,154 @@ namespace UmfEngine
 
         private void InternalDrawLine(float thickness, Color color, Vector2 begin, Vector2 end)
         {
+            // TODO: put this into the batch geometry renderer instead of doing it here
+            if (Quality == Quality.High && thickness > 1)
+            {
+                InternalDrawCircle(thickness, color, begin);
+                InternalDrawCircle(thickness, color, end);
+            }
+
+            // TODO: use batch geometry renderer instead of this
+
             var direction = end - begin;
             var perpendicular = new Vector2(direction.Y, -direction.X);
             var normalizedPerpendicular = perpendicular / perpendicular.Length();
             var offset = normalizedPerpendicular * thickness / 2;
 
-            Span<SDL_FPoint> scoords =
-            [
-                Vector2ToSdlFPoint(begin + offset),
-                Vector2ToSdlFPoint(begin - offset),
-                Vector2ToSdlFPoint(end - offset),
-                Vector2ToSdlFPoint(end + offset),
-            ];
-
             var fcolor = ColorToSdlFColor(color);
 
-            Span<SDL_Vertex> vertices =
+            // this is already in the format that SDL_RenderGeometryRaw wants; it's a struct, so its layout is well-defined
+            Span<Vector2> vcoords =
             [
-                new SDL_Vertex
-                {
-                    position = scoords[0],
-                    color = fcolor,
-                },
-                new SDL_Vertex
-                {
-                    position = scoords[1],
-                    color = fcolor,
-                },
-                new SDL_Vertex
-                {
-                    position = scoords[2],
-                    color = fcolor,
-                },
-                new SDL_Vertex
-                {
-                    position = scoords[2],
-                    color = fcolor,
-                },
-                new SDL_Vertex
-                {
-                    position = scoords[3],
-                    color = fcolor,
-                },
-                new SDL_Vertex
-                {
-                    position = scoords[0],
-                    color = fcolor,
-                },
+                begin + offset,
+                begin - offset,
+                end - offset,
+                end + offset,
             ];
 
-            _vertexRenderQueue.AddRange(vertices);
+            Span<SDL_FColor> colors =
+            [
+                fcolor,
+                fcolor,
+                fcolor,
+                fcolor,
+            ];
 
-            // Uncommment this for debugging purposes, if we're getting wrong ordering of geometry
-            //FlushBatchedGeometry();
+            Span<byte> indices =
+            [
+                0,
+                1,
+                2,
+                2,
+                3,
+                0,
+            ];
+
+            fixed (Vector2* xysPointer = &vcoords[0])
+            fixed (SDL_FColor* colorsPointer = &colors[0])
+            fixed (byte* indicesPointer = &indices[0])
+            {
+                if (!SDL3.SDL_RenderGeometryRaw(_renderer, null,
+                    (float*)xysPointer, sizeof(float)*2,
+                    colorsPointer, sizeof(SDL_FColor),
+                    null, 0,
+                    4,
+                    (nint)indicesPointer, 6, sizeof(byte)))
+                {
+                    throw UmfException.From(nameof(SDL3.SDL_RenderGeometryRaw));
+                }
+            }
         }
 
-        // Don't use this, it's slow. Better to use InternalDrawThinLine with a thickness of 1
+        // Don't use this, it's slow. Better to use InternalDrawLine with a thickness of 1
         [Obsolete]
         private void InternalDrawThinLine(Color color, Vector2 begin, Vector2 end)
         {
-            FlushBatchedGeometry();
-
             SetRenderDrawColor(color);
 
             // TODO: allow other thicknesses
             if (!SDL3.SDL_RenderLine(_renderer, begin.X, begin.Y, end.X, end.Y))
                 throw UmfException.From(nameof(SDL3.SDL_RenderLine));
+        }
+
+        public void DrawCircle(Transform t, float diameter, Color color, float x, float y)
+        {
+            DrawCircle(t, diameter, color, new Vector2(x, y));
+        }
+
+        public void DrawCircle(Transform t, float diameter, Color color, Vector2 coord)
+        {
+            coord = t.TransformVector(coord);
+            diameter = diameter * t.Scale;
+            if (diameter < 1.45f)
+            {
+                // draw a square instead, minimum of 1.0f
+                InternalDrawCircle(1.45f, color, coord);
+            }
+            else
+            {
+                InternalDrawCircle(diameter, color, coord);
+            }
+        }
+
+        private void InternalDrawCircle(float diameter, Color color, Vector2 coord)
+        {
+            // TODO: this should add to the BatchGeometryRenderer
+
+            float radius = diameter/2;
+
+            var fcolor = ColorToSdlFColor(color);
+
+            // this is already in the format that SDL_RenderGeometryRaw wants; it's a struct, so its layout is well-defined
+            Span<Vector2> vcoords =
+            [
+                new Vector2(coord.X-radius, coord.Y-radius), // maybe reverse order???
+                new Vector2(coord.X-radius, coord.Y+radius),
+                new Vector2(coord.X+radius, coord.Y+radius),
+                new Vector2(coord.X+radius, coord.Y-radius),
+            ];
+
+            Span<SDL_FColor> colors =
+            [
+                fcolor,
+                fcolor,
+                fcolor,
+                fcolor,
+            ];
+
+            Span<float> uvs =
+            [
+                0, 0,
+                0, 1,
+                1, 1,
+                1, 0,
+            ];
+
+            Span<byte> indices =
+            [
+                0,
+                1,
+                2,
+                2,
+                3,
+                0,
+            ];
+
+            fixed (Vector2* xysPointer = &vcoords[0])
+            fixed (SDL_FColor* colorsPointer = &colors[0])
+            fixed (float* uvsPointer = &uvs[0])
+            fixed (byte* indicesPointer = &indices[0])
+            {
+                if (!SDL3.SDL_RenderGeometryRaw(_renderer, _circleTexture,
+                    (float*)xysPointer, sizeof(float)*2,
+                    colorsPointer, sizeof(SDL_FColor),
+                    uvsPointer, sizeof(float)*2,
+                    4,
+                    (nint)indicesPointer, 6, sizeof(byte)))
+                {
+                    throw UmfException.From(nameof(SDL3.SDL_RenderGeometryRaw));
+                }
+            }
         }
 
         private void SetRenderDrawColor(Color color)
@@ -620,7 +762,7 @@ namespace UmfEngine
             };
         }
 
-        #endregion Drawing
+#endregion Drawing
 
         #region Audio
 
@@ -701,6 +843,16 @@ namespace UmfEngine
                 return Color.FromArgb(255, t, p, v);
             else
                 return Color.FromArgb(255, v, p, q);
+        }
+
+        public static float RadiansToDegrees(float radians)
+        {
+            return 360f * (radians / MathF.Tau);
+        }
+
+        public static float DegreesToRadians(float degrees)
+        {
+            return (degrees / 360f) * MathF.Tau;
         }
 
         #endregion Util
