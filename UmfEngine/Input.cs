@@ -48,12 +48,25 @@ namespace UmfEngine
             return false;
         }
 
-        public Vector2 GetMousePosition(Transform transform)
+        public Vector2 GetMousePosition(CameraViewport transform)
         {
-            return transform.InverseTransformVector(_mousePosition);
+            return transform.ScreenToWorldSpace(_mousePosition);
         }
 
-        // TODO: implement IsMouseButtonDown
+        public bool IsMouseButtonDown(MouseButton mouseButton)
+        {
+            switch (mouseButton)
+            {
+                case MouseButton.Left:
+                    return _mouseButtonsDown.HasFlag(SDL_MouseButtonFlags.SDL_BUTTON_LMASK);
+                case MouseButton.Right:
+                    return _mouseButtonsDown.HasFlag(SDL_MouseButtonFlags.SDL_BUTTON_RMASK);
+                case MouseButton.Middle:
+                    return _mouseButtonsDown.HasFlag(SDL_MouseButtonFlags.SDL_BUTTON_MMASK);
+            }
+
+            throw new Exception("Shouldn't be able to reach here");
+        }
 
         public bool WasMouseButtonPressed(MouseButton mouseButton)
         {

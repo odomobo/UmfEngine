@@ -25,7 +25,7 @@ namespace Game
         // TODO: add logic where it can launch projectiles
         // TODO: add logic where it can charge up
 
-        public void Update(Engine e, Transform t)
+        public void Update(Engine e, CameraViewport t)
         {
             UpdateTurretAngle(e, t);
 
@@ -43,12 +43,12 @@ namespace Game
             }
         }
 
-        private void UpdateTurretAngle(Engine e, Transform t)
+        private void UpdateTurretAngle(Engine e, CameraViewport t)
         {
             // move to position of tank
-            t = t.GetTranslated(Position.X, Position.Y);
+            t = t.GetTranslatedInverse(Position.X, Position.Y);
             // move to position of turret
-            t = t.GetTranslated(0, -Size);
+            t = t.GetTranslatedInverse(0, -Size);
             var mousePosition = e.Input.GetMousePosition(t);
             var mouseAngle = mousePosition.GetAngle();
 
@@ -76,11 +76,11 @@ namespace Game
             }
         }
 
-        public void Draw(Engine e, Transform t)
+        public void Draw(Engine e, CameraViewport t)
         {
             // let's just draw a silly box
             // move to position of tank
-            t = t.GetTranslated(Position.X, Position.Y);
+            t = t.GetTranslatedInverse(Position.X, Position.Y);
             e.DrawLinesClosed(t, 0.1f, Color,
                 -0.5f * Size,  0f,
                 -0.5f * Size, -Size,
@@ -91,8 +91,8 @@ namespace Game
 
             // let's add a turret on top
             // move to position of turret
-            t = t.GetTranslated(0, -Size);
-            t = t.GetRotated(_turretRotationAngle);
+            t = t.GetTranslatedInverse(0, -Size);
+            t = t.GetRotatedInverse(_turretRotationAngle);
             e.DrawLine(t, 0.1f, Color, Vector2.Zero, new Vector2(0, -TurretSize));
         }
     }

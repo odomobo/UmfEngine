@@ -422,18 +422,19 @@ namespace UmfEngine
                 throw UmfException.From(nameof(SDL3.SDL_CreateTextureFromSurface));
         }
 
-        public Transform GetTransform()
+        public CameraViewport GetCamera()
         {
             // Note: respect_units_width, if that ever becomes an option
 
             var viewport = GetEffectiveViewport();
 
-            var transform = new Transform();
-            transform = transform.GetTranslated(viewport.X, viewport.Y);
-            transform = transform.GetScaled(viewport.Height / _configuration.ScreenSizeInUnits);
+            //var camera = new CameraViewport();
+            //camera = camera.GetTranslated(viewport.X, viewport.Y);
+            //camera = camera.GetZoomed(viewport.Height / _configuration.ScreenSizeInUnits);
+            var camera = CameraViewport.CameraViewportFromScreenInfo(new Vector2(viewport.X, viewport.Y), viewport.Height, _configuration.ScreenSizeInUnits);
 
             // TODO: allow for transform to be selected from other coordinates, like upper right, lower center, right center, very center, etc.
-            return transform;
+            return camera;
         }
 
         public void ClearScreen(Color? color = null)
@@ -497,11 +498,14 @@ namespace UmfEngine
                 throw UmfException.From(nameof(SDL3.SDL_RenderPresent));
         }
 
-        public void DrawLine(Transform t, float thickness, Color color, Vector2 begin, Vector2 end)
+        // TODO: allow null transform
+        public void DrawLine(CameraViewport c, Transform t, float thickness, Color color, Vector2 begin, Vector2 end)
         {
             begin = t.TransformVector(begin);
+            begin = c.WorldToScreenSpace(begin);
             end = t.TransformVector(end);
-            thickness = thickness * t.Scale;
+            end = c.WorldToScreenSpace(end);
+            thickness = thickness * t.GetScale * c.ScalingFactor;
             if (thickness <= 1)
             {
                 // TODO: scale color opacity with thickness?
@@ -513,35 +517,35 @@ namespace UmfEngine
             }
         }
 
-        public void DrawLine(Transform t, float thickness, Color color, float x1, float y1, float x2, float y2)
+        public void DrawLine(CameraViewport c, Transform t, float thickness, Color color, float x1, float y1, float x2, float y2)
         {
-            DrawLine(t, thickness, color, new Vector2(x1, y1), new Vector2(x2, y2));
+            DrawLine(c, t, thickness, color, new Vector2(x1, y1), new Vector2(x2, y2));
         }
 
-        public void DrawLines(Transform t, float thickness, Color color, params Vector2[] vectors)
+        public void DrawLines(CameraViewport c, Transform t, float thickness, Color color, params Vector2[] vectors)
         {
             if (vectors.Length < 2)
                 throw new InvalidOperationException($"{nameof(DrawLines)} must be called with at least 2 vectors");
 
             for (int i = 0; i <= vectors.Length-2; i++)
             {
-                DrawLine(t, thickness, color, vectors[i], vectors[i+1]);
+                DrawLine(c, t, thickness, color, vectors[i], vectors[i+1]);
             }
         }
 
-        public void DrawLinesClosed(Transform t, float thickness, Color color, params Vector2[] vectors)
+        public void DrawLinesClosed(CameraViewport c, Transform t, float thickness, Color color, params Vector2[] vectors)
         {
             if (vectors.Length < 2)
                 throw new InvalidOperationException($"{nameof(DrawLinesClosed)} must be called with at least 2 vectors");
 
             for (int i = 0; i <= vectors.Length-2; i++)
             {
-                DrawLine(t, thickness, color, vectors[i], vectors[i + 1]);
+                DrawLine(c, t, thickness, color, vectors[i], vectors[i + 1]);
             }
-            DrawLine(t, thickness, color, vectors[vectors.Length-1], vectors[0]);
+            DrawLine(c, t, thickness, color, vectors[vectors.Length-1], vectors[0]);
         }
 
-        public void DrawLines(Transform t, float thickness, Color color, params float[] coords)
+        public void DrawLines(CameraViewport c, Transform t, float thickness, Color color, params float[] coords)
         {
             if (coords.Length < 4)
                 throw new InvalidOperationException($"{nameof(DrawLines)} must be called with at least 4 coords");
@@ -552,11 +556,11 @@ namespace UmfEngine
             // stride of 2
             for (int i = 0; i <= coords.Length-4; i += 2)
             {
-                DrawLine(t, thickness, color, coords[i], coords[i+1], coords[i+2], coords[i+3]);
+                DrawLine(c, t, thickness, color, coords[i], coords[i+1], coords[i+2], coords[i+3]);
             }
         }
 
-        public void DrawLinesClosed(Transform t, float thickness, Color color, params float[] coords)
+        public void DrawLinesClosed(CameraViewport c, Transform t, float thickness, Color color, params float[] coords)
         {
             if (coords.Length < 4)
                 throw new InvalidOperationException($"{nameof(DrawLinesClosed)} must be called with at least 4 coords");
@@ -566,22 +570,25 @@ namespace UmfEngine
 
             for (int i = 0; i <= coords.Length-4; i += 2)
             {
-                DrawLine(t, thickness, color, coords[i], coords[i+1], coords[i+2], coords[i+3]);
+                DrawLine(c, t, thickness, color, coords[i], coords[i+1], coords[i+2], coords[i+3]);
             }
-            DrawLine(t, thickness, color, coords[coords.Length-2], coords[coords.Length-1], coords[0], coords[1]);
+            DrawLine(c, t, thickness, color, coords[coords.Length-2], coords[coords.Length-1], coords[0], coords[1]);
         }
 
-        public void DrawThinLine(Transform t, Color color, Vector2 begin, Vector2 end)
+        // TODO: allow null transform
+        public void DrawThinLine(CameraViewport c, Transform t, Color color, Vector2 begin, Vector2 end)
         {
             begin = t.TransformVector(begin);
+            begin = c.WorldToScreenSpace(begin);
             end = t.TransformVector(end);
+            end = c.WorldToScreenSpace(end);
             
             InternalDrawLine(1, color, begin, end);
         }
 
-        public void DrawThinLine(Transform t, Color color, float x1, float y1, float x2, float y2)
+        public void DrawThinLine(CameraViewport c, Transform t, Color color, float x1, float y1, float x2, float y2)
         {
-            DrawThinLine(t, color, new Vector2(x1, y1), new Vector2(x2, y2));
+            DrawThinLine(c, t, color, new Vector2(x1, y1), new Vector2(x2, y2));
         }
 
         private void InternalDrawLine(float thickness, Color color, Vector2 begin, Vector2 end)
@@ -656,15 +663,17 @@ namespace UmfEngine
                 throw UmfException.From(nameof(SDL3.SDL_RenderLine));
         }
 
-        public void DrawCircle(Transform t, float diameter, Color color, float x, float y)
+        public void DrawCircle(CameraViewport c, Transform t, float diameter, Color color, float x, float y)
         {
-            DrawCircle(t, diameter, color, new Vector2(x, y));
+            DrawCircle(c, t, diameter, color, new Vector2(x, y));
         }
 
-        public void DrawCircle(Transform t, float diameter, Color color, Vector2 coord)
+        // TODO: allow null transform
+        public void DrawCircle(CameraViewport c, Transform t, float diameter, Color color, Vector2 coord)
         {
             coord = t.TransformVector(coord);
-            diameter = diameter * t.Scale;
+            coord = c.WorldToScreenSpace(coord);
+            diameter = diameter * t.GetScale * c.ScalingFactor;
             if (diameter < 1.45f)
             {
                 // draw a square instead, minimum of 1.0f

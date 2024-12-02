@@ -28,7 +28,7 @@ namespace Game
     // Finally, we can have a new iterface, IColliderGameObject : ICollider, IGameObject
     internal interface IGameObject
     {
-        void Update(Engine e, Transform t);
-        void Draw(Engine e, Transform t);
+        void Update(Engine e, CameraViewport t);
+        void Draw(Engine e, CameraViewport t);
     }
 }

@@ -5,7 +5,7 @@ using System.Drawing;
 using System.Numerics;
 using UmfEngine;
 
-namespace Game
+namespace CameraTest
 {
     internal class Program
     {
@@ -13,8 +13,6 @@ namespace Game
         // We're also disabling vsync, because in pathological situations, it can cause extreme lag.
         public const double TargetFps = 60;
         public static readonly TimeSpan TargetFrameTime = TimeSpan.FromSeconds(1 / TargetFps);
-
-        public const bool StressTest = true;
 
         private static Logger Logger;
         private static void ConfigureNLog()
@@ -43,6 +41,7 @@ namespace Game
 
             int frameNumber = 0;
             var funCircleCoord = new Vector2(1, 2);
+            var c = engine.GetCamera();
             while (true)
             {
                 var sw = Stopwatch.StartNew();
@@ -60,7 +59,8 @@ namespace Game
                 // TODO
 
                 // draw calls here
-                var c = engine.GetCamera();
+                c = c.GetTranslated(1f / 60f, 0);
+
                 var transform = new Transform();
                 engine.ClearScreen();
 
@@ -69,10 +69,11 @@ namespace Game
                 // TODO: remove, testing
                 //var numx = frameNumber % 100;
                 //var obnoxiousTransform = transform.GetTranslated(0.5f * numx, 0);
+                var quadrantCamera = engine.GetCamera();
                 var obnoxiousTransform = transform;
 
-                engine.DrawThinLine(c, obnoxiousTransform, Color.Purple, new Vector2(-1000, 18), new Vector2(1000, 18));
-                engine.DrawThinLine(c, obnoxiousTransform, Color.Purple, new Vector2(32, -1000), new Vector2(32, 1000));
+                engine.DrawThinLine(quadrantCamera, obnoxiousTransform, Color.Purple, new Vector2(-1000, 18), new Vector2(1000, 18));
+                engine.DrawThinLine(quadrantCamera, obnoxiousTransform, Color.Purple, new Vector2(32, -1000), new Vector2(32, 1000));
 
                 int stride = 1;
                 for (int x = 0; x < 64; x += stride)
@@ -117,12 +118,7 @@ namespace Game
 
                 DrawCursor(engine, input);
 
-                if (StressTest)
-                    engine.CompleteFrame();
-                else
-                    engine.CompleteFrame(TargetFrameTime);
-
-                Console.WriteLine($"FPS: {engine.FPS:0.00}; thread utilization: {engine.ThreadUtilization * 100:0.0}%");
+                engine.CompleteFrame(TargetFrameTime);
             }
         }
 

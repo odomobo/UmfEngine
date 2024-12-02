@@ -31,6 +31,8 @@ Project("{911E67C6-3D85-4FCE-B560-20A9C3E3FF48}") = "GridTest", "GridTest\bin\Re
 		IORedirection = Auto
 	EndProjectSection
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CameraTest", "CameraTest\CameraTest.csproj", "{77EECD88-7007-46C4-A84A-A152BDC249EC}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -91,6 +93,14 @@ Global
 		{AC6895FF-A558-4F29-B930-1D3BDD38DEA4}.Debug|x64.ActiveCfg = Release|x64
 		{AC6895FF-A558-4F29-B930-1D3BDD38DEA4}.Release|Any CPU.ActiveCfg = Release|x64
 		{AC6895FF-A558-4F29-B930-1D3BDD38DEA4}.Release|x64.ActiveCfg = Release|x64
+		{77EECD88-7007-46C4-A84A-A152BDC249EC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{77EECD88-7007-46C4-A84A-A152BDC249EC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{77EECD88-7007-46C4-A84A-A152BDC249EC}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{77EECD88-7007-46C4-A84A-A152BDC249EC}.Debug|x64.Build.0 = Debug|Any CPU
+		{77EECD88-7007-46C4-A84A-A152BDC249EC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{77EECD88-7007-46C4-A84A-A152BDC249EC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{77EECD88-7007-46C4-A84A-A152BDC249EC}.Release|x64.ActiveCfg = Release|Any CPU
+		{77EECD88-7007-46C4-A84A-A152BDC249EC}.Release|x64.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

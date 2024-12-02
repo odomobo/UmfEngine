@@ -68,7 +68,7 @@ namespace Game
                 frameNumber++;
 
                 // game logic here
-                var t = e.GetTransform();
+                var t = e.GetCamera();
                 tank.Update(e, t);
                 foreach (var projectile in FriendlyProjectiles)
                 {
@@ -99,14 +99,15 @@ namespace Game
         {
             var cursorColor = Color.White;
 
-            var transform = engine.GetTransform();
-            var cursorPosition = input.GetMousePosition(transform);
-            transform = transform.GetTranslated(cursorPosition);
-            transform = transform.GetScaled(1f); // cursor size of 1 unit
+            var c = engine.GetCamera();
+            var transform = new Transform();
+            var cursorPosition = input.GetMousePosition(c);
+            transform.Translate(cursorPosition);
+            transform.Scale(1f); // cursor size of 1 unit
             // we probably don't need to rotate
             //transform = transform.GetRotated((float)engineTime.TotalSeconds * 4);
-            engine.DrawThinLine(transform, cursorColor, new Vector2(-0.5f, 0), new Vector2(0.5f, 0));
-            engine.DrawThinLine(transform, cursorColor, new Vector2(0, -0.5f), new Vector2(0, 0.5f));
+            engine.DrawThinLine(c, transform, cursorColor, new Vector2(-0.5f, 0), new Vector2(0.5f, 0));
+            engine.DrawThinLine(c, transform, cursorColor, new Vector2(0, -0.5f), new Vector2(0, 0.5f));
         }
 
         private static void DrawFloor(Engine e)
@@ -114,8 +115,9 @@ namespace Game
             var floorColor = Color.IndianRed;
             var floorThickness = 0.16f;
 
-            var t = e.GetTransform();
-            e.DrawLine(t, floorThickness, floorColor, 0, FloorY + floorThickness / 2, 64, FloorY + floorThickness / 2);
+            var c = e.GetCamera();
+            var t = new Transform();
+            e.DrawLine(c, t, floorThickness, floorColor, 0, FloorY + floorThickness / 2, 64, FloorY + floorThickness / 2);
         }
     }
 }

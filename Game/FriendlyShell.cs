@@ -17,14 +17,14 @@ namespace Game
         public float Length = 0.2f;
         public float Thickness = 0.1f;
 
-        public void Draw(Engine e, Transform t)
+        public void Draw(Engine e, CameraViewport t)
         {
-            t = t.GetTranslated(Position);
+            t = t.GetTranslatedInverse(Position);
             var velocityNormalized = Velocity / Velocity.Length();
             e.DrawLine(t, Thickness, Color, Vector2.Zero, -velocityNormalized * Length);
         }
 
-        public void Update(Engine e, Transform t)
+        public void Update(Engine e, CameraViewport t)
         {
             var velocityPerFrame = Velocity * Program.DeltaTimeSeconds;
             Position += velocityPerFrame;
