@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using UmfEngine;
+﻿using UmfEngine;
 
 namespace Game
 {
@@ -28,7 +23,7 @@ namespace Game
     // Finally, we can have a new iterface, IColliderGameObject : ICollider, IGameObject
     internal interface IGameObject
     {
-        void Update(Engine e, CameraViewport t);
-        void Draw(Engine e, CameraViewport t);
+        void Update(Engine e, Camera c);
+        void Draw(Engine e, Camera c);
     }
 }

@@ -1,14 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Numerics;
-using System.Reflection.Metadata;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Numerics;
 
 namespace UmfEngine
 {
-    public struct CameraViewport
+    public struct Camera
     {
         private readonly Vector2 _viewportOffset;
         private readonly Vector2 _position;
@@ -19,7 +13,7 @@ namespace UmfEngine
 
         // TODO: have camera that centers in different quadrants
 
-        internal CameraViewport(Vector2 viewportOffset, Vector2 position, float rotation, float zoom, float pixelsPerUnit)
+        internal Camera(Vector2 viewportOffset, Vector2 position, float rotation, float zoom, float pixelsPerUnit)
         {
             _viewportOffset = viewportOffset;
             _position = position;
@@ -28,20 +22,20 @@ namespace UmfEngine
             _pixelsPerUnit = pixelsPerUnit;
         }
 
-        internal static CameraViewport CameraViewportFromScreenInfo(Vector2 viewportOffset, float screenHeightInPixels, float screenHeightInUnits)
+        internal static Camera CameraViewportFromScreenInfo(Vector2 viewportOffset, float screenHeightInPixels, float screenHeightInUnits)
         {
             // TODO: fix this
             var position = new Vector2(0, 0);
             var rotation = 0;
             var zoom = 1;
             var pixelsPerUnit = screenHeightInPixels / screenHeightInUnits;
-            return new CameraViewport(viewportOffset, position, rotation, zoom, pixelsPerUnit);
+            return new Camera(viewportOffset, position, rotation, zoom, pixelsPerUnit);
         }
 
         public Vector2 WorldToScreenSpace(Vector2 v)
         {
             v = v - _position;
-            v = v.GetRotated(-_rotation);
+            v = v.GetRotatedRadians(-_rotation);
             v = v * _zoom * _pixelsPerUnit;
             v += _viewportOffset;
             return v;
@@ -51,17 +45,17 @@ namespace UmfEngine
         {
             v -= _viewportOffset;
             v = v / (_zoom * _pixelsPerUnit);
-            v = v.GetRotated(_rotation);
+            v = v.GetRotatedRadians(_rotation);
             v = v + _position;
             return v;
         }
 
-        public CameraViewport GetTranslated(Vector2 v)
+        public Camera GetTranslated(Vector2 v)
         {
-            return new CameraViewport(_viewportOffset, _position + v, _rotation, _zoom, _pixelsPerUnit);
+            return new Camera(_viewportOffset, _position + v, _rotation, _zoom, _pixelsPerUnit);
         }
 
-        public CameraViewport GetTranslated(float x, float y)
+        public Camera GetTranslated(float x, float y)
         {
             return GetTranslated(new Vector2(x, y));
         }
@@ -72,9 +66,9 @@ namespace UmfEngine
         //    return new CameraViewport(_position, _rotation + angle, _zoom, _pixelsPerUnit);
         //}
 
-        public CameraViewport GetZoomed(float zoom)
+        public Camera GetZoomed(float zoom)
         {
-            return new CameraViewport(_viewportOffset, _position, _rotation, _zoom * zoom, _pixelsPerUnit);
+            return new Camera(_viewportOffset, _position, _rotation, _zoom * zoom, _pixelsPerUnit);
         }
     }
 }

@@ -61,7 +61,7 @@ namespace Game
 
                 // draw calls here
                 var c = engine.GetCamera();
-                var transform = new Transform();
+                var transform = new GameObjectTransform();
                 engine.ClearScreen();
 
                 // draw obnoxious lines to see the masking
@@ -90,8 +90,8 @@ namespace Game
                             //continue;
                         }
 
-                        var tmpTransform = new Transform(transform);
-                        tmpTransform.Translate(x, y);
+                        var tmpTransform = new GameObjectTransform(transform);
+                        tmpTransform.TranslateRelativeToSelf(x, y);
 
                         // TODO: remove; testing
                         //var num = frameNumber % 100;
@@ -131,9 +131,9 @@ namespace Game
             var cursorColor = Color.White;
 
             var c = engine.GetCamera();
-            var transform = new Transform();
+            var transform = new GameObjectTransform();
             var cursorPosition = input.GetMousePosition(c);
-            transform.Translate(cursorPosition);
+            transform.TranslateRelativeToSelf(cursorPosition);
             transform.Scale(1f); // cursor size of 1 unit
             // we probably don't need to rotate
             //transform = transform.GetRotated((float)engineTime.TotalSeconds * 4);

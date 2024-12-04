@@ -1,11 +1,5 @@
-﻿using SDL;
-using System;
-using System.Collections.Generic;
-using System.Drawing;
-using System.Linq;
+﻿using System.Drawing;
 using System.Numerics;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace UmfEngine
 {
@@ -34,7 +28,7 @@ namespace UmfEngine
             return (float)random.DoubleBetween(min, max);
         }
 
-        public static float GetAngle(this Vector2 v)
+        public static float GetAngleRadians(this Vector2 v)
         {
             v = v / v.Length();
 
@@ -45,11 +39,26 @@ namespace UmfEngine
             return angle;
         }
 
-        public static Vector2 GetRotated(this Vector2 v, float angle)
+        public static float GetAngleDegrees(this Vector2 v)
         {
-            float x = v.X * MathF.Cos(angle) + v.Y * -MathF.Sin(angle);
-            float y = v.X * MathF.Sin(angle) + v.Y * MathF.Cos(angle);
+            return Engine.RadiansToDegrees(v.GetAngleRadians());
+        }
+
+        public static Vector2 GetRotatedRadians(this Vector2 v, float angleRadians)
+        {
+            float x = v.X * MathF.Cos(angleRadians) + v.Y * -MathF.Sin(angleRadians);
+            float y = v.X * MathF.Sin(angleRadians) + v.Y * MathF.Cos(angleRadians);
             return new Vector2(x, y);
+        }
+
+        public static Vector2 GetRotatedDegrees(this Vector2 v, float angleDegrees)
+        {
+            return GetRotatedRadians(v, Engine.DegreesToRadians(angleDegrees));
+        }
+
+        public static Vector2 Normalized(this Vector2 v)
+        {
+            return v / v.Length();
         }
     }
 }

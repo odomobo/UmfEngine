@@ -1,16 +1,8 @@
 ﻿using NLog;
 using SDL;
-using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
-using System.Linq;
 using System.Numerics;
-using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
-using System.Text;
-using System.Threading.Tasks;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace UmfEngine
 {
@@ -348,6 +340,11 @@ namespace UmfEngine
             Quality = _configuration.Quality;
 
             CreateCircleSurfaceAndTexture(512);
+
+            // TODO: I don't know if I want to keep this. I don't know if we want to add colors, of if we want to overlay them.
+            // I kinda like the effect for now, and it simplifies things
+            SDL3.SDL_SetRenderDrawBlendMode(_renderer, SDL_BlendMode.SDL_BLENDMODE_ADD);
+            SDL3.SDL_SetTextureBlendMode(_circleTexture, SDL_BlendMode.SDL_BLENDMODE_ADD);
         }
 
         private void RendererDispose()
@@ -372,6 +369,7 @@ namespace UmfEngine
             return ret;
         }
 
+        // TODO: remove the surface. This isn't needed past initial creation of circle
         private SDL_Surface* _circleSurface;
         private SDL_Texture* _circleTexture;
         private void CreateCircleSurfaceAndTexture(int diameter)
@@ -422,7 +420,8 @@ namespace UmfEngine
                 throw UmfException.From(nameof(SDL3.SDL_CreateTextureFromSurface));
         }
 
-        public CameraViewport GetCamera()
+        // TODO: coordinates of where camera is looking, scale of camera, quadrant that camera is fixed upon
+        public Camera GetCamera()
         {
             // Note: respect_units_width, if that ever becomes an option
 
@@ -431,7 +430,7 @@ namespace UmfEngine
             //var camera = new CameraViewport();
             //camera = camera.GetTranslated(viewport.X, viewport.Y);
             //camera = camera.GetZoomed(viewport.Height / _configuration.ScreenSizeInUnits);
-            var camera = CameraViewport.CameraViewportFromScreenInfo(new Vector2(viewport.X, viewport.Y), viewport.Height, _configuration.ScreenSizeInUnits);
+            var camera = Camera.CameraViewportFromScreenInfo(new Vector2(viewport.X, viewport.Y), viewport.Height, _configuration.ScreenSizeInUnits);
 
             // TODO: allow for transform to be selected from other coordinates, like upper right, lower center, right center, very center, etc.
             return camera;
@@ -499,13 +498,13 @@ namespace UmfEngine
         }
 
         // TODO: allow null transform
-        public void DrawLine(CameraViewport c, Transform t, float thickness, Color color, Vector2 begin, Vector2 end)
+        public void DrawLine(Camera c, AffineTransformation t, float thickness, Color color, Vector2 begin, Vector2 end)
         {
-            begin = t.TransformVector(begin);
+            begin = t.TransformVectorLocalToWorld(begin);
             begin = c.WorldToScreenSpace(begin);
-            end = t.TransformVector(end);
+            end = t.TransformVectorLocalToWorld(end);
             end = c.WorldToScreenSpace(end);
-            thickness = thickness * t.GetScale * c.ScalingFactor;
+            thickness = thickness * t.ScaleRelativeToParent * c.ScalingFactor;
             if (thickness <= 1)
             {
                 // TODO: scale color opacity with thickness?
@@ -517,12 +516,12 @@ namespace UmfEngine
             }
         }
 
-        public void DrawLine(CameraViewport c, Transform t, float thickness, Color color, float x1, float y1, float x2, float y2)
+        public void DrawLine(Camera c, AffineTransformation t, float thickness, Color color, float x1, float y1, float x2, float y2)
         {
             DrawLine(c, t, thickness, color, new Vector2(x1, y1), new Vector2(x2, y2));
         }
 
-        public void DrawLines(CameraViewport c, Transform t, float thickness, Color color, params Vector2[] vectors)
+        public void DrawLines(Camera c, AffineTransformation t, float thickness, Color color, params Vector2[] vectors)
         {
             if (vectors.Length < 2)
                 throw new InvalidOperationException($"{nameof(DrawLines)} must be called with at least 2 vectors");
@@ -533,7 +532,7 @@ namespace UmfEngine
             }
         }
 
-        public void DrawLinesClosed(CameraViewport c, Transform t, float thickness, Color color, params Vector2[] vectors)
+        public void DrawLinesClosed(Camera c, AffineTransformation t, float thickness, Color color, params Vector2[] vectors)
         {
             if (vectors.Length < 2)
                 throw new InvalidOperationException($"{nameof(DrawLinesClosed)} must be called with at least 2 vectors");
@@ -545,7 +544,7 @@ namespace UmfEngine
             DrawLine(c, t, thickness, color, vectors[vectors.Length-1], vectors[0]);
         }
 
-        public void DrawLines(CameraViewport c, Transform t, float thickness, Color color, params float[] coords)
+        public void DrawLines(Camera c, AffineTransformation t, float thickness, Color color, params float[] coords)
         {
             if (coords.Length < 4)
                 throw new InvalidOperationException($"{nameof(DrawLines)} must be called with at least 4 coords");
@@ -560,7 +559,7 @@ namespace UmfEngine
             }
         }
 
-        public void DrawLinesClosed(CameraViewport c, Transform t, float thickness, Color color, params float[] coords)
+        public void DrawLinesClosed(Camera c, AffineTransformation t, float thickness, Color color, params float[] coords)
         {
             if (coords.Length < 4)
                 throw new InvalidOperationException($"{nameof(DrawLinesClosed)} must be called with at least 4 coords");
@@ -576,17 +575,17 @@ namespace UmfEngine
         }
 
         // TODO: allow null transform
-        public void DrawThinLine(CameraViewport c, Transform t, Color color, Vector2 begin, Vector2 end)
+        public void DrawThinLine(Camera c, AffineTransformation t, Color color, Vector2 begin, Vector2 end)
         {
-            begin = t.TransformVector(begin);
+            begin = t.TransformVectorLocalToWorld(begin);
             begin = c.WorldToScreenSpace(begin);
-            end = t.TransformVector(end);
+            end = t.TransformVectorLocalToWorld(end);
             end = c.WorldToScreenSpace(end);
             
             InternalDrawLine(1, color, begin, end);
         }
 
-        public void DrawThinLine(CameraViewport c, Transform t, Color color, float x1, float y1, float x2, float y2)
+        public void DrawThinLine(Camera c, AffineTransformation t, Color color, float x1, float y1, float x2, float y2)
         {
             DrawThinLine(c, t, color, new Vector2(x1, y1), new Vector2(x2, y2));
         }
@@ -663,17 +662,17 @@ namespace UmfEngine
                 throw UmfException.From(nameof(SDL3.SDL_RenderLine));
         }
 
-        public void DrawCircle(CameraViewport c, Transform t, float diameter, Color color, float x, float y)
+        public void DrawCircle(Camera c, AffineTransformation t, float diameter, Color color, float x, float y)
         {
             DrawCircle(c, t, diameter, color, new Vector2(x, y));
         }
 
         // TODO: allow null transform
-        public void DrawCircle(CameraViewport c, Transform t, float diameter, Color color, Vector2 coord)
+        public void DrawCircle(Camera c, AffineTransformation t, float diameter, Color color, Vector2 coord)
         {
-            coord = t.TransformVector(coord);
+            coord = t.TransformVectorLocalToWorld(coord);
             coord = c.WorldToScreenSpace(coord);
-            diameter = diameter * t.GetScale * c.ScalingFactor;
+            diameter = diameter * t.ScaleRelativeToParent * c.ScalingFactor;
             if (diameter < 1.45f)
             {
                 // draw a square instead, minimum of 1.0f
@@ -862,6 +861,24 @@ namespace UmfEngine
         public static float DegreesToRadians(float degrees)
         {
             return (degrees / 360f) * MathF.Tau;
+        }
+
+        public static float NormalizeAngleRadians(float radians)
+        {
+            radians = radians % MathF.Tau;
+            if (radians < 0)
+                radians += MathF.Tau;
+
+            return radians;
+        }
+
+        public static float NormalizeAngleDegrees(float degrees)
+        {
+            degrees = degrees % 360;
+            if (degrees < 0)
+                degrees += 360;
+
+            return degrees;
         }
 
         #endregion Util

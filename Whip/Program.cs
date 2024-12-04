@@ -60,14 +60,14 @@ namespace Whip
 
                 // draw calls here
                 var c = engine.GetCamera();
-                var transform = new Transform();
+                var transform = new AffineTransformation();
                 engine.ClearScreen();
 
                 var screenSize = engine.GetScreenDimensionsInUnits();
 
-                var centerTransform = new Transform(transform);
-                centerTransform.Translate(screenSize.X / 2, 1);
-                centerTransform.Rotate(MathF.PI / 2);
+                var centerTransform = transform;
+                centerTransform = centerTransform.GetTranslatedRelativeToSelf(screenSize.X / 2, 1);
+                centerTransform = centerTransform.GetRotatedRelativeToSelfRadians(MathF.PI / 2);
                 DrawSpiral(engine, centerTransform, engineTime);
 
                 var mousePosition = input.GetMousePosition(c);
@@ -81,22 +81,22 @@ namespace Whip
             }
         }
 
-        static void DrawCursor(Engine engine, Transform transform, Vector2 cursorPosition, TimeSpan engineTime)
+        static void DrawCursor(Engine engine, AffineTransformation transform, Vector2 cursorPosition, TimeSpan engineTime)
         {
             var c = engine.GetCamera();
-            transform.Translate(cursorPosition);
-            transform.Scale(0.3f);
-            transform.Rotate((float)engineTime.TotalSeconds*4);
+            transform = transform.GetTranslatedRelativeToSelf(cursorPosition);
+            transform = transform.GetScaled(0.3f);
+            transform = transform.GetRotatedRelativeToSelfRadians((float)engineTime.TotalSeconds*4);
             engine.DrawThinLine(c, transform, Color.White, new Vector2(-0.5f, 0), new Vector2(0.5f, 0));
             engine.DrawThinLine(c, transform, Color.White, new Vector2(0, -0.5f), new Vector2(0, 0.5f));
         }
 
-        static void DrawSpiral(Engine engine, Transform transform, TimeSpan engineTime)
+        static void DrawSpiral(Engine engine, AffineTransformation transform, TimeSpan engineTime)
         {
             var c = engine.GetCamera();
             var scale = Math.Sin((engineTime.TotalMilliseconds / 4000));
-            transform.Scale(1 + (float)scale * 0.1f);
-            var startingTransform = transform.Clone();
+            transform = transform.GetScaled(1 + (float)scale * 0.1f);
+            var startingTransform = transform;
             Color color = Color.Magenta;
             for (int i = 0; i < 6000; i++)
             {
@@ -107,11 +107,11 @@ namespace Whip
                 //engine.DrawThinLine(transform, color, new Vector2(xOffsetStart, 0), new Vector2(xOffsetEnd, -0.8f));
                 engine.DrawLine(c, transform, 0.1f, color, new Vector2(xOffsetStart, 0), new Vector2(xOffsetEnd, -0.8f));
 
-                transform.Translate(new Vector2(0, -0.8f));
+                transform = transform.GetTranslatedRelativeToSelf(new Vector2(0, -0.8f));
                 //var angle = Math.Cos((engineTime.TotalMilliseconds / 4000));
                 var angle = 0;
-                transform.Rotate(0.09f * (1 + (float)angle*0.15f));
-                transform.Scale(0.9995f);
+                transform = transform.GetRotatedRelativeToSelfRadians(0.09f * (1 + (float)angle*0.15f));
+                transform = transform.GetScaled(0.9995f);
             }
             engine.DrawCircle(c, startingTransform, 0.897f, color, 8.88f, -0.457f);
         }

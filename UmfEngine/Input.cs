@@ -1,11 +1,5 @@
 ﻿using SDL;
-using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
 using System.Numerics;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace UmfEngine
 {
@@ -48,7 +42,7 @@ namespace UmfEngine
             return false;
         }
 
-        public Vector2 GetMousePosition(CameraViewport transform)
+        public Vector2 GetMousePosition(Camera transform)
         {
             return transform.ScreenToWorldSpace(_mousePosition);
         }

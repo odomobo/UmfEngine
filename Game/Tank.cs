@@ -1,99 +1,134 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Diagnostics;
 using System.Drawing;
-using System.Linq;
 using System.Numerics;
-using System.Text;
-using System.Threading.Tasks;
 using UmfEngine;
 
 namespace Game
 {
     internal class Tank : IGameObject
     {
-        //public float X = 1;
-        //public float Y = 1;
-        public Vector2 Position;
-        public float Size = 1;
-        public float TurretSize = 0.8f;
-        public float TurretRotationSpeedDegreesPerSecond = 90;
-        public float TurretRotationSpeedRadiansPerFrame => 
-            Engine.DegreesToRadians(TurretRotationSpeedDegreesPerSecond) * Program.DeltaTimeSeconds;
-        public Color Color = Color.GreenYellow;
-        private float _turretRotationAngle = 0;
+        // TODO: naming
+        private readonly GameObjectTransform Transform;
+        private readonly float TurretSize = 0.8f;
+        private readonly Color Color = Color.GreenYellow;
+
+        private readonly Turret _turret;
         
         // TODO: add logic where it can launch projectiles
         // TODO: add logic where it can charge up
 
-        public void Update(Engine e, CameraViewport t)
+        public Tank(GameObjectTransform? parent, Vector2 position)
         {
-            UpdateTurretAngle(e, t);
+            Transform = new GameObjectTransform(parent);
+            Transform.TranslateRelativeToParent(position);
 
-            // launch shell if clicked
-            if (e.Input.WasMouseButtonPressed(MouseButton.Left))
-            {
-                var shell = new FriendlyShell();
-                var shellOffsetFromTurretNormalized = new Vector2(0, -1);
-                shellOffsetFromTurretNormalized = shellOffsetFromTurretNormalized.GetRotated(_turretRotationAngle);
-                var shellOffsetFromTurret = shellOffsetFromTurretNormalized * TurretSize;
+            var turretTransform = new GameObjectTransform(Transform);
+            turretTransform.Scale(TurretSize);
+            turretTransform.TranslateRelativeToParent(0, -1);
 
-                shell.Position = Position + new Vector2(0, -Size) + shellOffsetFromTurret;
-                shell.Velocity = shellOffsetFromTurretNormalized * 25f;
-                Program.FriendlyProjectiles.Add(shell);
-            }
+            _turret = new Turret(turretTransform);
         }
 
-        private void UpdateTurretAngle(Engine e, CameraViewport t)
+        public void Update(Engine e, Camera c)
         {
-            // move to position of tank
-            t = t.GetTranslatedInverse(Position.X, Position.Y);
-            // move to position of turret
-            t = t.GetTranslatedInverse(0, -Size);
-            var mousePosition = e.Input.GetMousePosition(t);
-            var mouseAngle = mousePosition.GetAngle();
-
-            // calculate angle clockwise from turret to mouse
-            var tmpMouseAngle = mouseAngle;
-            if (tmpMouseAngle < _turretRotationAngle)
-                tmpMouseAngle += MathF.Tau;
-
-            var angleFromTurretToMouse = tmpMouseAngle - _turretRotationAngle;
-            if (angleFromTurretToMouse < MathF.PI)
-            {
-                // turret should rotate clockwise
-                if (angleFromTurretToMouse > TurretRotationSpeedRadiansPerFrame)
-                    _turretRotationAngle += TurretRotationSpeedRadiansPerFrame;
-                else
-                    _turretRotationAngle = mouseAngle;
-            }
-            else
-            {
-                // turret should rotate counterclockwise
-                if (MathF.Tau - angleFromTurretToMouse > TurretRotationSpeedRadiansPerFrame)
-                    _turretRotationAngle -= TurretRotationSpeedRadiansPerFrame;
-                else
-                    _turretRotationAngle = mouseAngle;
-            }
+            _turret.Update(e, c);
         }
 
-        public void Draw(Engine e, CameraViewport t)
+        public void Draw(Engine e, Camera c)
         {
             // let's just draw a silly box
             // move to position of tank
-            t = t.GetTranslatedInverse(Position.X, Position.Y);
-            e.DrawLinesClosed(t, 0.1f, Color,
-                -0.5f * Size,  0f,
-                -0.5f * Size, -Size,
-                 0.5f * Size, -Size,
-                 0.5f * Size,  0f);
+            e.DrawLinesClosed(c, Transform, 0.1f, Color,
+                -0.5f,  0f,
+                -0.5f, -1f,
+                 0.5f, -1f,
+                 0.5f,  0f);
 
-            // TODO: give the turret some turret tracking
+            _turret.Draw(e, c);
+        }
 
-            // let's add a turret on top
-            // move to position of turret
-            t = t.GetTranslatedInverse(0, -Size);
-            t = t.GetRotatedInverse(_turretRotationAngle);
-            e.DrawLine(t, 0.1f, Color, Vector2.Zero, new Vector2(0, -TurretSize));
+        internal class Turret : IGameObject
+        {
+            public GameObjectTransform Transform;
+            public float TurretSize = 0.8f;
+            public float TurretRotationSpeedDegreesPerSecond = 90;
+            public float TurretRotationSpeedRadiansPerFrame =>
+                Engine.DegreesToRadians(TurretRotationSpeedDegreesPerSecond) * Program.DeltaTimeSeconds;
+            public Color Color = Color.GreenYellow;
+
+            public Turret(GameObjectTransform transform)
+            {
+                Transform = transform;
+            }
+
+            // TODO: add logic where it can launch projectiles
+            // TODO: add logic where it can charge up
+
+            public void Update(Engine e, Camera c)
+            {
+                UpdateTurretAngle(e, c);
+
+                // launch shell if clicked
+                if (e.Input.WasMouseButtonPressed(MouseButton.Left))
+                {
+                    
+                    // use transform for rotation, and get world position and world rotation to determine how to launch projectile
+                    // start at the end of the barrel
+                    var friendlyShellPosition = Transform.TransformVectorLocalToWorld(new Vector2(0, -1));
+                    var friendlyShellInitialVelocityNormalized = new Vector2(0, -1).GetRotatedRadians(Transform.RotationRadiansRelativeToWorld);
+                    var friendlyShellInitialVelocity = friendlyShellInitialVelocityNormalized * 25f;
+
+                    var shell = new FriendlyShell(friendlyShellPosition, friendlyShellInitialVelocity);
+                    Program.FriendlyProjectiles.Add(shell);
+                }
+            }
+
+            private void UpdateTurretAngle(Engine e, Camera c)
+            {
+                if (e.Input.WasMouseButtonPressed(MouseButton.Right))
+                {
+                    Debugger.Break();
+                }
+
+                var mousePosition = e.Input.GetMousePosition(c);
+                var mouseAngle = (mousePosition - Transform.PositionRelativeToWorld).GetAngleRadians();
+                mouseAngle = Engine.NormalizeAngleRadians(mouseAngle);
+                var turretAngle = Transform.RotationRadiansRelativeToWorld;
+                turretAngle = Engine.NormalizeAngleRadians(turretAngle);
+
+                // TODO: we should have turret angle be encoded by the turret game object transform rotating
+
+                // calculate angle clockwise from turret to mouse
+                var tmpMouseAngle = mouseAngle;
+                if (tmpMouseAngle < turretAngle)
+                    tmpMouseAngle += MathF.Tau;
+
+                var angleFromTurretToMouse = tmpMouseAngle - turretAngle;
+                if (angleFromTurretToMouse < MathF.PI)
+                {
+                    // turret should rotate clockwise
+                    if (angleFromTurretToMouse > TurretRotationSpeedRadiansPerFrame)
+                        turretAngle += TurretRotationSpeedRadiansPerFrame;
+                    else
+                        turretAngle = mouseAngle;
+                }
+                else
+                {
+                    // turret should rotate counterclockwise
+                    if (MathF.Tau - angleFromTurretToMouse > TurretRotationSpeedRadiansPerFrame)
+                        turretAngle -= TurretRotationSpeedRadiansPerFrame;
+                    else
+                        turretAngle = mouseAngle;
+                }
+
+                Transform.SetRotationRelativeToParentRadians(turretAngle);
+            }
+
+            public void Draw(Engine e, Camera c)
+            {
+                // draw the line vertically, and depend on the transform rotation to point the correct direction
+                e.DrawLine(c, Transform, 0.1f, Color, Vector2.Zero, new Vector2(0, -TurretSize));
+            }
         }
     }
 }

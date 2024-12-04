@@ -1,8 +1,5 @@
 ﻿using NLog;
-using SDL;
 using System.Diagnostics;
-using System.Drawing;
-using System.Numerics;
 using UmfEngine;
 
 namespace VsyncTest

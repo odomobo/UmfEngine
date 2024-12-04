@@ -33,6 +33,8 @@ Project("{911E67C6-3D85-4FCE-B560-20A9C3E3FF48}") = "GridTest", "GridTest\bin\Re
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CameraTest", "CameraTest\CameraTest.csproj", "{77EECD88-7007-46C4-A84A-A152BDC249EC}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UMFE.Framework", "UMFE.Framework\UMFE.Framework.csproj", "{0E33A4D5-7499-4F77-9CDC-45DF09F5C0AE}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -101,6 +103,14 @@ Global
 		{77EECD88-7007-46C4-A84A-A152BDC249EC}.Release|Any CPU.Build.0 = Release|Any CPU
 		{77EECD88-7007-46C4-A84A-A152BDC249EC}.Release|x64.ActiveCfg = Release|Any CPU
 		{77EECD88-7007-46C4-A84A-A152BDC249EC}.Release|x64.Build.0 = Release|Any CPU
+		{0E33A4D5-7499-4F77-9CDC-45DF09F5C0AE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0E33A4D5-7499-4F77-9CDC-45DF09F5C0AE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0E33A4D5-7499-4F77-9CDC-45DF09F5C0AE}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{0E33A4D5-7499-4F77-9CDC-45DF09F5C0AE}.Debug|x64.Build.0 = Debug|Any CPU
+		{0E33A4D5-7499-4F77-9CDC-45DF09F5C0AE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0E33A4D5-7499-4F77-9CDC-45DF09F5C0AE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0E33A4D5-7499-4F77-9CDC-45DF09F5C0AE}.Release|x64.ActiveCfg = Release|Any CPU
+		{0E33A4D5-7499-4F77-9CDC-45DF09F5C0AE}.Release|x64.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

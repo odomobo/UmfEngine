@@ -1,6 +1,5 @@
 ﻿using Microsoft.Extensions.Configuration;
 using NLog;
-using NLog.Config;
 using NLog.Extensions.Logging;
 using SDL;
 using System.Diagnostics;
@@ -51,7 +50,7 @@ namespace Game
 
             using var e = new Engine(engineConfig);
             
-            var tank = new Tank { Position = new Vector2(5, FloorY) };
+            var tank = new Tank(null, new Vector2(5, FloorY));
 
             int frameNumber = 0;
             while (true)
@@ -68,28 +67,28 @@ namespace Game
                 frameNumber++;
 
                 // game logic here
-                var t = e.GetCamera();
-                tank.Update(e, t);
+                var c = e.GetCamera();
+
+                tank.Update(e, c);
                 foreach (var projectile in FriendlyProjectiles)
                 {
-                    projectile.Update(e, t);
+                    projectile.Update(e, c);
                 }
 
                 // draw calls here
                 e.ClearScreen();
 
                 DrawFloor(e);
-                tank.Draw(e, t);
+                tank.Draw(e, c);
 
                 foreach (var projectile in FriendlyProjectiles)
                 {
-                    projectile.Draw(e, t);
+                    projectile.Draw(e, c);
                 }
 
                 DrawCursor(e, input);
 
                 e.CompleteFrame(DeltaTime);
-                //engine.CompleteFrame();
 
                 Logger.Info($"FPS: {e.FPS:0.00}; thread utilization: {e.ThreadUtilization*100:0.0}%");
             }
@@ -100,9 +99,9 @@ namespace Game
             var cursorColor = Color.White;
 
             var c = engine.GetCamera();
-            var transform = new Transform();
+            var transform = new GameObjectTransform();
             var cursorPosition = input.GetMousePosition(c);
-            transform.Translate(cursorPosition);
+            transform.TranslateRelativeToSelf(cursorPosition);
             transform.Scale(1f); // cursor size of 1 unit
             // we probably don't need to rotate
             //transform = transform.GetRotated((float)engineTime.TotalSeconds * 4);
@@ -116,7 +115,7 @@ namespace Game
             var floorThickness = 0.16f;
 
             var c = e.GetCamera();
-            var t = new Transform();
+            var t = new GameObjectTransform();
             e.DrawLine(c, t, floorThickness, floorColor, 0, FloorY + floorThickness / 2, 64, FloorY + floorThickness / 2);
         }
     }
