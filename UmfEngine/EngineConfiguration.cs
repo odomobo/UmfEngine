@@ -3,6 +3,15 @@ using System.Numerics;
 
 namespace UmfEngine
 {
+    // For quality settings, let's do something like this:
+    // Low: lines with no end caps, no post processing
+    // Medium: lines with end caps, no post processing
+    // High: lines with end caps, bloom post processing
+    // Ultra: 2x oversamping, lines with end caps, bloom post processing
+    //
+    // Maybe ultra is unnecessary if line drawing uses blurred lines from textures in the first place
+    //
+    // Something interesting to do: use a different input->output mapping; when brightness gets above a certain level, start fading to white
     public enum Quality
     {
         Low,
@@ -25,6 +34,6 @@ namespace UmfEngine
         public bool UseRenderCompatibilityMode { get; set; } = false;
         public bool DefaultFullscreen { get; set; } = false;
         public bool DefaultCursorVisible {  get; set; } = true;
-        public Color DefaultClearColor { get; set; } = Color.Moccasin;
+        public Color DefaultClearColor { get; set; } = Color.Black;
     }
 }

@@ -9,6 +9,8 @@ namespace UmfEngine
     // Note: There should only be one instance of these
     public unsafe class Engine : IDisposable
     {
+        #region Main
+
         private readonly Logger _logger;
         private readonly EngineConfiguration _configuration;
         private bool _disposed = false;
@@ -53,6 +55,8 @@ namespace UmfEngine
             AudioCleanupOldPlaybacks();
             SleepForDurationSinceLastFrame(frameTime);
         }
+
+        #endregion Main
 
         #region Timing
 
@@ -104,6 +108,10 @@ namespace UmfEngine
                 _lastFpsCalculatedElapsedTime = asOfElapsedTime;
 
                 ThreadUtilization = (float)(_utilizedSinceLastFpsTime.TotalSeconds / timeSinceLastFpsUpdate.TotalSeconds);
+                // get rid of silly negative thread utilization
+                if (ThreadUtilization < 0)
+                    ThreadUtilization = 0;
+
                 _utilizedSinceLastFpsTime = TimeSpan.Zero;
 
                 _framesSinceLastFpsTime = 0;
@@ -320,7 +328,7 @@ namespace UmfEngine
 
         #endregion Input
 
-        #region Drawing
+        #region Rendering
 
         private SDL_Renderer* _renderer;
         public Color ClearColor { get; set; }
@@ -340,17 +348,22 @@ namespace UmfEngine
             Quality = _configuration.Quality;
 
             CreateCircleSurfaceAndTexture(512);
+            CreateFontAtlas("monogram-bitmap_transparent.bmp");
 
-            // TODO: I don't know if I want to keep this. I don't know if we want to add colors, of if we want to overlay them.
+            // TODO: I don't know if I want to keep this. I don't know if we want to add colors together, of if we want to overwrite them.
             // I kinda like the effect for now, and it simplifies things
-            SDL3.SDL_SetRenderDrawBlendMode(_renderer, SDL_BlendMode.SDL_BLENDMODE_ADD);
-            SDL3.SDL_SetTextureBlendMode(_circleTexture, SDL_BlendMode.SDL_BLENDMODE_ADD);
+            if (!SDL3.SDL_SetRenderDrawBlendMode(_renderer, SDL_BlendMode.SDL_BLENDMODE_ADD))
+                throw UmfException.From(nameof(SDL3.SDL_SetRenderDrawBlendMode));
+
+            if (!SDL3.SDL_SetTextureBlendMode(_circleTexture, SDL_BlendMode.SDL_BLENDMODE_ADD))
+                throw UmfException.From(nameof(SDL3.SDL_SetTextureBlendMode));
         }
 
         private void RendererDispose()
         {
             SDL3.SDL_DestroyTexture(_circleTexture);
-            SDL3.SDL_DestroySurface(_circleSurface);
+            SDL3.SDL_DestroySurface(_circleSurface); // TODO: move this into the circle creation
+            SDL3.SDL_DestroyTexture(_fontTexture);
             SDL3.SDL_DestroyRenderer(_renderer);
         }
 
@@ -595,8 +608,13 @@ namespace UmfEngine
             // TODO: put this into the batch geometry renderer instead of doing it here
             if (Quality == Quality.High && thickness > 1)
             {
+                // TODO: draw endcap semi-circles instead of full circles
                 InternalDrawCircle(thickness, color, begin);
                 InternalDrawCircle(thickness, color, end);
+            }
+            else
+            {
+                // TODO: extend line ends by thickness/2
             }
 
             // TODO: use batch geometry renderer instead of this
@@ -744,6 +762,112 @@ namespace UmfEngine
             }
         }
 
+        private SDL_Texture* _fontTexture;
+        private void CreateFontAtlas(string path)
+        {
+            var fontSurface = SDL3.SDL_LoadBMP(path);
+            if (fontSurface == null)
+                throw UmfException.From(nameof(SDL3.SDL_LoadBMP));
+
+            _fontTexture = SDL3.SDL_CreateTextureFromSurface(_renderer, fontSurface);
+            SDL3.SDL_DestroySurface(fontSurface); // destroy this unconditionally
+            if (_fontTexture == null)
+                throw UmfException.From(nameof(SDL3.SDL_CreateTextureFromSurface));
+
+            if (!SDL3.SDL_SetTextureScaleMode(_fontTexture, SDL_ScaleMode.SDL_SCALEMODE_NEAREST))
+                throw UmfException.From(nameof(SDL3.SDL_SetTextureScaleMode));
+        }
+
+        public void DrawCharacter(Camera camera, AffineTransformation t, char ch, Color color, Vector2 upperLeftCoord = default, float sizeHeight = 1f)
+        {
+            upperLeftCoord = t.TransformVectorLocalToWorld(upperLeftCoord);
+            upperLeftCoord = camera.WorldToScreenSpace(upperLeftCoord);
+            sizeHeight = sizeHeight * t.ScaleRelativeToParent * camera.ScalingFactor;
+
+            InternalDrawCharacter(ch, sizeHeight, color, upperLeftCoord, t.RotationRadians);
+        }
+
+        private const int FontRows = 8;
+        private const int FontColumns = 16;
+        private (int x, int y) GetCharacterLocation(char c)
+        {
+            int i = c;
+            if (i < 32 || i > 127)
+                i = 0; // for now, only allow things in the range [32-127]
+
+            return (i % FontColumns, i / FontColumns);
+        }
+
+        private (float u, float v) CharacterLocationToUv(int x, int y)
+        {
+            return (x / (float)FontColumns, y / (float)FontRows);
+        }
+
+        private void InternalDrawCharacter(char c, float sizeHeight, Color color, Vector2 upperLeftCoord, float angleRadians)
+        {
+            // TODO: this should add to the BatchGeometryRenderer
+
+            var fcolor = ColorToSdlFColor(color);
+
+            Vector2 right = new Vector2(sizeHeight / 2, 0).GetRotatedRadians(angleRadians);
+            Vector2 down = new Vector2(0, sizeHeight).GetRotatedRadians(angleRadians);
+
+            // this is already in the format that SDL_RenderGeometryRaw wants; it's a struct, so its layout is well-defined
+            Span<Vector2> vcoords =
+            [
+                upperLeftCoord + down,         // lower left
+                upperLeftCoord,                // upper left
+                upperLeftCoord + right,        // upper right
+                upperLeftCoord + right + down, // lower right
+            ];
+
+            Span<SDL_FColor> colors =
+            [
+                fcolor,
+                fcolor,
+                fcolor,
+                fcolor,
+            ];
+
+            var (locX, locY) = GetCharacterLocation(c);
+            var (leftU, upperV) = CharacterLocationToUv(locX, locY);
+            var (rightU, lowerV) = CharacterLocationToUv(locX+1, locY+1);
+
+            Span<float> uvs =
+            [
+                leftU, lowerV, // lower left
+                leftU, upperV, // upper left
+                rightU, upperV, // upper right
+                rightU, lowerV, // lower right
+            ];
+
+            Span<byte> indices =
+            [
+                0,
+                1,
+                2,
+                2,
+                3,
+                0,
+            ];
+
+            fixed (Vector2* xysPointer = &vcoords[0])
+            fixed (SDL_FColor* colorsPointer = &colors[0])
+            fixed (float* uvsPointer = &uvs[0])
+            fixed (byte* indicesPointer = &indices[0])
+            {
+                if (!SDL3.SDL_RenderGeometryRaw(_renderer, _fontTexture,
+                    (float*)xysPointer, sizeof(float) * 2,
+                    colorsPointer, sizeof(SDL_FColor),
+                    uvsPointer, sizeof(float) * 2,
+                    4,
+                    (nint)indicesPointer, 6, sizeof(byte)))
+                {
+                    throw UmfException.From(nameof(SDL3.SDL_RenderGeometryRaw));
+                }
+            }
+        }
+
         private void SetRenderDrawColor(Color color)
         {
             if (!SDL3.SDL_SetRenderDrawColor(_renderer, color.R, color.G, color.B, color.A))
@@ -770,7 +894,7 @@ namespace UmfEngine
             };
         }
 
-#endregion Drawing
+        #endregion Rendering
 
         #region Audio
 
@@ -814,6 +938,7 @@ namespace UmfEngine
             return new AudioClip(path);
         }
 
+        // TODO: have gain use DB instead of linear
         public void PlayAudioClip(AudioClip clip, float gain = 1f, float playbackSpeed = 1f)
         {
             _audioPlaybacks.Add(new AudioPlayback(clip, _audioOutDevice, gain, playbackSpeed));

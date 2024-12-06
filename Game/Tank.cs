@@ -1,6 +1,7 @@
 ﻿using System.Diagnostics;
 using System.Drawing;
 using System.Numerics;
+using UMFE.Framework;
 using UmfEngine;
 
 namespace Game
@@ -71,16 +72,22 @@ namespace Game
                 // launch shell if clicked
                 if (e.Input.WasMouseButtonPressed(MouseButton.Left))
                 {
-                    
-                    // use transform for rotation, and get world position and world rotation to determine how to launch projectile
-                    // start at the end of the barrel
-                    var friendlyShellPosition = Transform.TransformVectorLocalToWorld(new Vector2(0, -1));
-                    var friendlyShellInitialVelocityNormalized = new Vector2(0, -1).GetRotatedRadians(Transform.RotationRadiansRelativeToWorld);
-                    var friendlyShellInitialVelocity = friendlyShellInitialVelocityNormalized * 25f;
-
-                    var shell = new FriendlyShell(friendlyShellPosition, friendlyShellInitialVelocity);
-                    Program.FriendlyProjectiles.Add(shell);
+                    Fire(e);
                 }
+            }
+
+            private void Fire(Engine e)
+            {
+                // use transform for rotation, and get world position and world rotation to determine how to launch projectile
+                // start at the end of the barrel
+                var friendlyShellPosition = Transform.TransformVectorLocalToWorld(new Vector2(0, -1));
+                var friendlyShellInitialVelocityNormalized = new Vector2(0, -1).GetRotatedRadians(Transform.RotationRadiansRelativeToWorld);
+                var friendlyShellInitialVelocity = friendlyShellInitialVelocityNormalized * 25f;
+
+                var shell = new FriendlyShell(friendlyShellPosition, friendlyShellInitialVelocity);
+                Program.FriendlyProjectiles.Add(shell);
+
+                e.PlayAudioClip(Program.LaserShootAudioClip, 1, Program.Random.FloatBetween(0.85f, 1.15f));
             }
 
             private void UpdateTurretAngle(Engine e, Camera c)

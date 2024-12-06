@@ -61,7 +61,7 @@ namespace CameraTest
                 // draw calls here
                 c = c.GetTranslated(1f / 60f, 0);
 
-                var transform = new GameObjectTransform();
+                var transform = new AffineTransformation();
                 engine.ClearScreen();
 
                 // draw obnoxious lines to see the masking
@@ -91,8 +91,7 @@ namespace CameraTest
                             //continue;
                         }
 
-                        var tmpTransform = new GameObjectTransform(transform);
-                        tmpTransform.TranslateRelativeToSelf(x, y);
+                        var tmpTransform = transform.GetTranslatedRelativeToSelf(x, y);
 
                         // TODO: remove; testing
                         //var num = frameNumber % 100;
@@ -127,10 +126,10 @@ namespace CameraTest
             var cursorColor = Color.White;
 
             var c = engine.GetCamera();
-            var transform = new GameObjectTransform();
+            var transform = new AffineTransformation();
             var cursorPosition = input.GetMousePosition(c);
-            transform.TranslateRelativeToSelf(cursorPosition);
-            transform.Scale(1f); // cursor size of 1 unit
+            transform = transform.GetTranslatedRelativeToSelf(cursorPosition);
+            transform = transform.GetScaled(1f); // cursor size of 1 unit
             // we probably don't need to rotate
             //transform = transform.GetRotated((float)engineTime.TotalSeconds * 4);
             engine.DrawThinLine(c, transform, cursorColor, new Vector2(-0.5f, 0), new Vector2(0.5f, 0));

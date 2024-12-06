@@ -28,6 +28,11 @@ namespace UmfEngine
             return (float)random.DoubleBetween(min, max);
         }
 
+        public static float NextFloat(this Random random)
+        {
+            return (float)random.NextDouble();
+        }
+
         public static float GetAngleRadians(this Vector2 v)
         {
             v = v / v.Length();

@@ -1,5 +1,6 @@
 ﻿using System.Drawing;
 using System.Numerics;
+using UMFE.Framework;
 using UmfEngine;
 
 namespace Game
@@ -30,6 +31,18 @@ namespace Game
             var velocityPerFrame = Velocity * Program.DeltaTimeSeconds;
             Transform.TranslateRelativeToSelf(velocityPerFrame);
             Velocity += Program.GravityPerFrame;
+
+            if (Transform.PositionRelativeToWorld.Y > Program.FloorY)
+            {
+                Explode(e);
+            }
+        }
+
+        private void Explode(Engine e)
+        {
+            Program.FriendlyProjectiles.Remove(this);
+            e.PlayAudioClip(Program.HitHurtAudioClip, 1, Program.Random.FloatBetween(0.85f, 1.15f));
+            // TODO: create explosion special effect
         }
     }
 }

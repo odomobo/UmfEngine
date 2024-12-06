@@ -22,6 +22,13 @@ namespace UmfEngine
             Scale = scale;
         }
 
+        public AffineTransformation(float x, float y)
+        {
+            Translation = new Vector2(x, y);
+            RotationRadians = 0;
+            Scale = 1;
+        }
+
         public AffineTransformation Apply(AffineTransformation secondTransform)
         {
             // TODO: huh.. what order to apply in????????

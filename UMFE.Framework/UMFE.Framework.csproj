@@ -6,4 +6,8 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\UmfEngine\UmfEngine.csproj" />
+  </ItemGroup>
+
 </Project>

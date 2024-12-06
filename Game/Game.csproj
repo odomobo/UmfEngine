@@ -14,11 +14,18 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\UMFE.Framework\UMFE.Framework.csproj" />
     <ProjectReference Include="..\UmfEngine\UmfEngine.csproj" />
   </ItemGroup>
 
   <ItemGroup>
     <None Update="appsettings.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="hitHurt.wav">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="laserShoot.wav">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>

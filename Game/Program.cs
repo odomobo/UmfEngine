@@ -5,6 +5,7 @@ using SDL;
 using System.Diagnostics;
 using System.Drawing;
 using System.Numerics;
+using UMFE.Framework;
 using UmfEngine;
 
 namespace Game
@@ -19,7 +20,12 @@ namespace Game
         public static readonly Vector2 GravityUnitsPerSecond = new Vector2(0, 20f);
         public static readonly Vector2 GravityPerFrame = GravityUnitsPerSecond * DeltaTimeSeconds;
         private static Logger Logger;
-        public static List<IGameObject> FriendlyProjectiles = new List<IGameObject>();
+        public static HashSet<IGameObject> FriendlyProjectiles = new HashSet<IGameObject>();
+
+        public static AudioClip HitHurtAudioClip;
+        public static AudioClip LaserShootAudioClip;
+
+        public static Random Random = new Random();
 
         private static IConfigurationRoot GetAppSettings()
         {
@@ -49,9 +55,16 @@ namespace Game
             };
 
             using var e = new Engine(engineConfig);
-            
-            var tank = new Tank(null, new Vector2(5, FloorY));
 
+            // TODO: we gotta do this in a different way.
+            using var hitHurtAudioClip = e.LoadAudioClip("hitHurt.wav");
+            HitHurtAudioClip = hitHurtAudioClip;
+            using var laserShootAudioClip = e.LoadAudioClip("laserShoot.wav");
+            LaserShootAudioClip = laserShootAudioClip;
+
+            var tank = new Tank(null, new Vector2(5, FloorY));
+            var fpsBlock = new TextBlock(null, "", new Vector2(0, 0), 1f);
+            
             int frameNumber = 0;
             while (true)
             {
@@ -86,11 +99,12 @@ namespace Game
                     projectile.Draw(e, c);
                 }
 
+                fpsBlock.SetText($"FPS: {e.FPS:0.00}\nThread utilization: {e.ThreadUtilization * 100:0.0}%");
+                fpsBlock.Draw(e, c);
+
                 DrawCursor(e, input);
 
                 e.CompleteFrame(DeltaTime);
-
-                Logger.Info($"FPS: {e.FPS:0.00}; thread utilization: {e.ThreadUtilization*100:0.0}%");
             }
         }
 

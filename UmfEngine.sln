@@ -31,9 +31,11 @@ Project("{911E67C6-3D85-4FCE-B560-20A9C3E3FF48}") = "GridTest", "GridTest\bin\Re
 		IORedirection = Auto
 	EndProjectSection
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CameraTest", "CameraTest\CameraTest.csproj", "{77EECD88-7007-46C4-A84A-A152BDC249EC}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CameraTest", "CameraTest\CameraTest.csproj", "{77EECD88-7007-46C4-A84A-A152BDC249EC}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UMFE.Framework", "UMFE.Framework\UMFE.Framework.csproj", "{0E33A4D5-7499-4F77-9CDC-45DF09F5C0AE}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UMFE.Framework", "UMFE.Framework\UMFE.Framework.csproj", "{0E33A4D5-7499-4F77-9CDC-45DF09F5C0AE}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TextRenderingTest", "TextRenderingTest\TextRenderingTest.csproj", "{F3D70F9F-D337-4E35-8F5F-2F228C1E2918}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -111,6 +113,14 @@ Global
 		{0E33A4D5-7499-4F77-9CDC-45DF09F5C0AE}.Release|Any CPU.Build.0 = Release|Any CPU
 		{0E33A4D5-7499-4F77-9CDC-45DF09F5C0AE}.Release|x64.ActiveCfg = Release|Any CPU
 		{0E33A4D5-7499-4F77-9CDC-45DF09F5C0AE}.Release|x64.Build.0 = Release|Any CPU
+		{F3D70F9F-D337-4E35-8F5F-2F228C1E2918}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F3D70F9F-D337-4E35-8F5F-2F228C1E2918}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F3D70F9F-D337-4E35-8F5F-2F228C1E2918}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{F3D70F9F-D337-4E35-8F5F-2F228C1E2918}.Debug|x64.Build.0 = Debug|Any CPU
+		{F3D70F9F-D337-4E35-8F5F-2F228C1E2918}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F3D70F9F-D337-4E35-8F5F-2F228C1E2918}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F3D70F9F-D337-4E35-8F5F-2F228C1E2918}.Release|x64.ActiveCfg = Release|Any CPU
+		{F3D70F9F-D337-4E35-8F5F-2F228C1E2918}.Release|x64.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
