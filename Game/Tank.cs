@@ -9,7 +9,7 @@ namespace Game
     internal class Tank : IGameObject
     {
         // TODO: naming
-        private readonly GameObjectTransform Transform;
+        public GameObjectTransform Transform { get; private set; }
         private readonly float TurretSize = 0.8f;
         private readonly Color Color = Color.GreenYellow;
 
@@ -50,7 +50,7 @@ namespace Game
 
         internal class Turret : IGameObject
         {
-            public GameObjectTransform Transform;
+            public GameObjectTransform Transform { get; private set; }
             public float TurretSize = 0.8f;
             public float TurretRotationSpeedDegreesPerSecond = 90;
             public float TurretRotationSpeedRadiansPerFrame =>

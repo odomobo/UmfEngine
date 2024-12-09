@@ -11,7 +11,8 @@ namespace UMFE.Framework
 {
     public class TextBlock : IGameObject
     {
-        public GameObjectTransform Transform;
+        public GameObjectTransform Transform { get; private set; }
+        public Color Color = Color.GreenYellow;
         private string _text;
         private string[] _splitText;
 
@@ -25,6 +26,7 @@ namespace UMFE.Framework
         {
             _text = text;
             _splitText = text.Split('\n');
+            _splitText = _splitText.Select(x => x.Trim('\r')).ToArray();
         }
 
         public void Draw(Engine e, Camera c)
@@ -35,7 +37,7 @@ namespace UMFE.Framework
                 var line = _splitText[y];
                 for (int x = 0; x < line.Length; x++)
                 {
-                    e.DrawCharacter(c, baseTransform, line[x], Color.GreenYellow, new Vector2(x * 0.5f, y));
+                    e.DrawCharacter(c, baseTransform, line[x], Color, new Vector2(x * 0.5f, y));
                 }
             }
         }

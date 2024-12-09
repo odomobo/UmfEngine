@@ -7,7 +7,7 @@ namespace Game
 {
     internal class FriendlyShell : IGameObject
     {
-        public GameObjectTransform Transform;
+        public GameObjectTransform Transform { get; private set; }
         public Vector2 Velocity;
         public Color Color = Color.Red;
         public float Length = 0.2f;

@@ -11,6 +11,8 @@ namespace UMFE.Framework
     // Finally, we can have a new iterface, IColliderGameObject : ICollider, IGameObject
     public interface IGameObject
     {
+        GameObjectTransform Transform { get; }
+
         void Update(Engine e, Camera c);
         void Draw(Engine e, Camera c);
     }
