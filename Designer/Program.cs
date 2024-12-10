@@ -1,4 +1,5 @@
-﻿using NLog;
+﻿using Microsoft.VisualBasic;
+using NLog;
 using SDL;
 using System.Diagnostics;
 using System.Drawing;
@@ -32,9 +33,9 @@ namespace Designer
             Logger = LogManager.GetCurrentClassLogger();
         }
 
-        private static List<List<Vector2>> UndoHistory = new List<List<Vector2>>();
-        private static ProgramState State = ProgramState.Normal;
-        private static int VertexDragIndex;
+        public static List<List<Vector2>> UndoHistory = new List<List<Vector2>>();
+        public static ProgramState State = ProgramState.Normal;
+        public static int VertexDragIndex;
 
         static void Main(string[] args)
         {
@@ -139,13 +140,30 @@ P to dump vertexes to stdout.";
                         sb.AppendLine("new Vector2[] {");
                         foreach (var vertex in shape)
                         {
-                            sb.AppendLine($"    new Vector2({vertex.X}, {vertex.Y}),");
+                            sb.AppendLine($"    new Vector2({vertex.X}f, {vertex.Y}f),");
                         }
                         sb.AppendLine("}");
                         Console.Write(sb.ToString());
                     }
+                    else if (input.WasKeyPressed(SDL_Scancode.SDL_SCANCODE_LEFT))
+                    {
+                        Shift(ref shape, new Vector2(-0.1f, 0));
+                    }
+                    else if (input.WasKeyPressed(SDL_Scancode.SDL_SCANCODE_RIGHT))
+                    {
+                        Shift(ref shape, new Vector2(0.1f, 0));
+                    }
+                    else if (input.WasKeyPressed(SDL_Scancode.SDL_SCANCODE_UP))
+                    {
+                        Shift(ref shape, new Vector2(0, -0.1f));
+                    }
+                    else if (input.WasKeyPressed(SDL_Scancode.SDL_SCANCODE_DOWN))
+                    {
+                        Shift(ref shape, new Vector2(0, 0.1f));
+                    }
                     else if (input.WasKeyPressed(SDL_Scancode.SDL_SCANCODE_L))
                     {
+                        ShapeLoader.LoadShape(ref shape);
                         // TODO: implement loading from data?????
                     }
                 }
@@ -190,6 +208,17 @@ P to dump vertexes to stdout.";
                 mouseCoordsText.Draw(engine, uiCamera);
 
                 engine.CompleteFrame(TargetFrameTime);
+            }
+        }
+
+        private static void Shift(ref List<Vector2> shape, Vector2 adjust)
+        {
+            // make a copy of shape, because we're about to modify it!
+            UndoHistory.Add(shape.ToList());
+
+            for (int i = 0; i < shape.Count; i++)
+            {
+                shape[i] = shape[i] + adjust;
             }
         }
 

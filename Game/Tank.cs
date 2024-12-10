@@ -37,13 +37,24 @@ namespace Game
 
         public void Draw(Engine e, Camera c)
         {
-            // let's just draw a silly box
-            // move to position of tank
+            // created with designer
+            var tankShape = new Vector2[] {
+                new Vector2(-1.1999998f, -1f),
+                new Vector2(-0.99999976f, -1.2f),
+                new Vector2(-0.09999993f, -1.2f),
+                new Vector2(0.19999999f, -0.7f),
+                new Vector2(1.3000002f, -0.7f),
+                new Vector2(1.4000002f, -0.8f),
+                new Vector2(1.8000002f, -0.8f),
+                new Vector2(2.1f, -0.5f),
+                new Vector2(2.1f, -0.3f),
+                new Vector2(1.8000002f, 0f),
+                new Vector2(-1.0999998f, 0f),
+                new Vector2(-1.1999998f, -0.1f),
+            };
+
             e.DrawLinesClosed(c, Transform, 0.1f, Color,
-                -0.5f,  0f,
-                -0.5f, -1f,
-                 0.5f, -1f,
-                 0.5f,  0f);
+                tankShape);
 
             _turret.Draw(e, c);
         }
@@ -51,8 +62,8 @@ namespace Game
         internal class Turret : IGameObject
         {
             public GameObjectTransform Transform { get; private set; }
-            public float TurretSize = 0.8f;
-            public float TurretRotationSpeedDegreesPerSecond = 90;
+            public float TurretSize = 1.5f;
+            public float TurretRotationSpeedDegreesPerSecond = 15;
             public float TurretRotationSpeedRadiansPerFrame =>
                 Engine.DegreesToRadians(TurretRotationSpeedDegreesPerSecond) * Program.DeltaTimeSeconds;
             public Color Color = Color.GreenYellow;
